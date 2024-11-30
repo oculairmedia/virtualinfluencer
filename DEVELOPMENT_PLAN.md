@@ -70,8 +70,6 @@ VirtualInfluencer is an Instagram automation bot that provides a REST API interf
    curl -X POST http://localhost:8000/save_history_filters \
         -H "Content-Type: application/json" \
         -d '{"filters": ["like", "follow"]}'
-   ```
-   - Expected Response: `{"status": "success", "message": "Filters saved"}`
 
 7. `GET /get_history_filters`
    - Description: Retrieves saved filters
@@ -369,6 +367,53 @@ tasklist /FI "IMAGENAME eq python.exe"
    - [ ] Add configuration management endpoints
    - [ ] Implement rate limiting
    - [ ] Add session history persistence
+
+## Docker Deployment
+
+### 1. Container Architecture
+- API Server (FastAPI)
+- Bot Engine (UIAutomator2)
+- External NocoDB integration via configuration
+
+### 2. Configuration
+- NocoDB connection via `nocodb.yml`
+  ```yaml
+  url: "https://your-nocodb-instance.com"
+  api_token: "${NOCODB_API_TOKEN}"
+  table_name: "instagram_interactions"
+  ```
+- Environment variables for sensitive data
+- Volume mounts for:
+  - Configuration files
+  - Log files
+  - Session data
+
+### 3. Implementation Plan
+1. Create Dockerfile
+   - Multi-stage build
+   - Android SDK and UIAutomator2 setup
+   - Python environment configuration
+
+2. Container Setup
+   - Service configuration
+   - Network setup
+   - Volume management
+   - Environment variables
+
+3. CI/CD Integration
+   - Automated builds
+   - Deployment automation
+   - Environment management
+
+4. Monitoring
+   - Health checks
+   - Log aggregation
+   - Restart policies
+
+5. Documentation
+   - Deployment guide
+   - NocoDB integration steps
+   - Configuration reference
 
 ## Testing Instructions
 
