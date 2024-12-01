@@ -270,9 +270,8 @@ async def start_session(request: SessionRequest):
     """Start a bot session for the specified account"""
     try:
         # Get absolute paths
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        base_dir = "/app"  # Fixed path in Docker container
         config_path = os.path.join(base_dir, "accounts", request.account, "config.yml")
-        python_path = os.path.join(base_dir, "venv", "Scripts", "python.exe")
         run_script = os.path.join(base_dir, "run.py")
         
         logger.info(f"Starting session for account {request.account} with config {config_path}")
@@ -283,7 +282,7 @@ async def start_session(request: SessionRequest):
             raise HTTPException(status_code=404, detail=error_msg)
             
         # Create a background task to run the bot
-        cmd = [python_path, "-v", run_script, "--config", config_path, "--use-nocodb", "--debug"]
+        cmd = ["python3", run_script, "--config", config_path, "--use-nocodb", "--debug"]
         logger.info(f"Running command: {' '.join(cmd)}")
         logger.info(f"Working directory: {base_dir}")
         logger.info(f"Environment PYTHONPATH: {os.environ.get('PYTHONPATH')}")
@@ -294,18 +293,13 @@ async def start_session(request: SessionRequest):
             
             # Set up environment variables
             env = os.environ.copy()
-            project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            env["PYTHONPATH"] = project_dir
+            env["PYTHONPATH"] = base_dir
             
             def run_process_in_thread():
                 try:
                     logger.info(f"Starting process with command: {' '.join(cmd)}")
                     logger.info(f"Working directory: {base_dir}")
                     logger.info(f"PYTHONPATH: {env['PYTHONPATH']}")
-                    
-                    # Create log file for the bot
-                    log_file = os.path.join(project_dir, "logs", f"{request.account}.log")
-                    os.makedirs(os.path.dirname(log_file), exist_ok=True)
                     
                     process = subprocess.Popen(
                         cmd,
@@ -318,55 +312,59 @@ async def start_session(request: SessionRequest):
                         universal_newlines=True
                     )
                     
-                    def log_output(pipe, prefix, log_file):
-                        with open(log_file, 'a', encoding='utf-8', buffering=1) as f:
-                            try:
-                                for line in pipe:
-                                    line = line.strip()
-                                    if line:
-                                        logger.info(f"{prefix}: {line}")
-                                        f.write(f"{prefix}: {line}\n")
-                                        f.flush()
-                            except Exception as e:
-                                logger.error(f"Error in log_output thread: {str(e)}", exc_info=True)
+                    # Store process info
+                    active_sessions[request.account] = {
+                        "process": process,
+                        "status": "running",
+                        "start_time": datetime.now(),
+                        "last_interaction": datetime.now(),
+                        "total_interactions": 0,
+                        "errors": None
+                    }
                     
-                    # Start threads to continuously read and log output
-                    stdout_thread = threading.Thread(target=log_output, args=(process.stdout, "STDOUT", log_file))
-                    stderr_thread = threading.Thread(target=log_output, args=(process.stderr, "STDERR", log_file))
-                    stdout_thread.daemon = True
-                    stderr_thread.daemon = True
-                    stdout_thread.start()
-                    stderr_thread.start()
-                    
-                    logger.info(f"Process started with PID: {process.pid}")
-                    return process
-                    
+                    # Monitor process output
+                    while True:
+                        output = process.stdout.readline()
+                        if output == '' and process.poll() is not None:
+                            break
+                        if output:
+                            logger.info(f"Bot output: {output.strip()}")
+                            
+                    # Process completed
+                    return_code = process.poll()
+                    if return_code != 0:
+                        error_output = process.stderr.read()
+                        logger.error(f"Bot process failed with code {return_code}: {error_output}")
+                        active_sessions[request.account]["status"] = "error"
+                        active_sessions[request.account]["errors"] = error_output
+                    else:
+                        logger.info("Bot process completed successfully")
+                        active_sessions[request.account]["status"] = "completed"
+                        
                 except Exception as e:
-                    logger.error(f"Failed to start process: {str(e)}", exc_info=True)
-                    return None
-
-            # Start the process in a separate thread
-            process = run_process_in_thread()
-            if process is None:
-                raise HTTPException(status_code=500, detail="Failed to start bot process")
-
-            logger.info(f"Successfully started session for account: {request.account}")
-            active_sessions[request.account] = {
-                'status': 'running',
-                'start_time': datetime.now(),
-                'process': process
-            }
-            return {"message": f"Started session for account: {request.account}", "status": "running", "pid": process.pid}
+                    logger.error(f"Failed to start process: {str(e)}")
+                    if request.account in active_sessions:
+                        active_sessions[request.account]["status"] = "error"
+                        active_sessions[request.account]["errors"] = str(e)
+                    raise HTTPException(status_code=500, detail=f"Failed to start process: {str(e)}")
+            
+            # Start process in background thread
+            thread = threading.Thread(target=run_process_in_thread)
+            thread.daemon = True
+            thread.start()
+            
+            # Register background task
+            register_task(thread)
+            
+            return {"status": "started", "account": request.account}
             
         except Exception as e:
-            error_msg = f"Failed to start process: {str(e)}"
-            logger.error(error_msg, exc_info=True)
-            raise HTTPException(status_code=500, detail=error_msg)
+            logger.error(f"Failed to start process: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to start bot process")
             
     except Exception as e:
-        error_msg = f"Error starting session: {str(e)}"
-        logger.error(error_msg)
-        raise HTTPException(status_code=500, detail=error_msg)
+        logger.error(f"Error starting session: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error starting session: {str(e)}")
 
 @app.post("/stop_session")
 async def stop_session(request: SessionRequest):

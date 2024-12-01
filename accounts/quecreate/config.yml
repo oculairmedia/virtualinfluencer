@@ -9,7 +9,7 @@
 ##############################################################################
 
 username: quecreate # you have to put your IG name here!
-# device: put_your_device_id_there # 'adb devices' in the console to know it.  It's needed only if you have more than 1 device connected
+device: 192.168.50.202:42356 # 'adb devices' in the console to know it.  It's needed only if you have more than 1 device connected
 app-id: com.instagram.android
 use-cloned-app: false
 allow-untested-ig-version: false # Using an untested version of IG would cause unexpected behavior because some elements in the user interface may have been changed
@@ -125,7 +125,7 @@ end-if-pm-limit-reached: false
 # time-delta: 10-15
 # repeat: 280-320
 # total-sessions: 1 # -1 or commented for infinite sessions
-working-hours: ["17.00-23.00"]
+
 time-delta: 0
 repeat: 280-320
 total-sessions: -1
