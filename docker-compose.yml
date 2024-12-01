@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  virtualinfluencer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: virtualinfluencer:latest
+    container_name: virtualinfluencer
+    ports:
+      - "8000:8000"  # FastAPI
+      - "5037:5037"  # ADB server
+    volumes:
+      - ./logs:/app/logs
+      - ./accounts:/app/accounts
+      - ./data:/app/data
+    environment:
+      - NOCODB_BASE_URL=${NOCODB_BASE_URL}
+      - NOCODB_TOKEN=${NOCODB_TOKEN}
+      - NOCODB_PROJECT_ID=${NOCODB_PROJECT_ID}
+      - NOCODB_HISTORY_FILTERS_TABLE_ID=${NOCODB_HISTORY_FILTERS_TABLE_ID}
+      - NOCODB_HISTORY_FILTERS_VIEW_ID=${NOCODB_HISTORY_FILTERS_VIEW_ID}
+      - NOCODB_INTERACTED_USERS_TABLE_ID=${NOCODB_INTERACTED_USERS_TABLE_ID}
+      - NOCODB_INTERACTED_USERS_VIEW_ID=${NOCODB_INTERACTED_USERS_VIEW_ID}
+      - PYTHONUNBUFFERED=1
+      - TZ=UTC
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - virtualinfluencer-net
+
+networks:
+  virtualinfluencer-net:
+    driver: bridge
