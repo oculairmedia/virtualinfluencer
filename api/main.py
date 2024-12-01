@@ -1163,3 +1163,8 @@ def update_yaml_value_in_lines(lines: list[str], key: str, value: Any) -> list[s
         new_lines.append(f"{key}: {value}\n")
     
     return new_lines
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for container monitoring"""
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
