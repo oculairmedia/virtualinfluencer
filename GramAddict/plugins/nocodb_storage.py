@@ -68,6 +68,7 @@ class NocoDBStorage(Plugin):
         self.enabled = False
         self.token_refresh_attempts = 0
         self.max_token_refresh_attempts = 3
+        self.username = None
         
         # Define default table schemas
         self.table_schemas = {
@@ -107,6 +108,9 @@ class NocoDBStorage(Plugin):
     def run(self, device, configs, storage, sessions, filters, plugin_name):
         """Initialize NocoDB storage"""
         nocodb_logger.info("Initializing NocoDB storage...")
+        
+        # Set username from configs
+        self.username = configs.username
         
         # Set enabled flag based on --use-nocodb argument
         self.enabled = configs.args.use_nocodb
@@ -1144,3 +1148,4 @@ class NocoDBStorage(Plugin):
         except Exception as e:
             logger.error(f"NocoDB: Failed to get filtered users: {str(e)}")
             return []
+

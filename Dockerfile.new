@@ -1,0 +1,29 @@
+FROM oculair/virtualinfluencer:latest
+
+WORKDIR /app
+
+# Install required packages
+RUN pip install uvicorn psutil gramaddict PyJWT
+
+# Create .android directory for ADB and set proper permissions
+RUN mkdir -p /root/.android && \
+    touch /root/.android/adbkey && \
+    chmod -R 755 /root/.android
+
+# Set ADB_VENDOR_KEYS environment variable
+ENV ADB_VENDOR_KEYS=/root/.android/adbkey
+
+# Copy the application code
+COPY . /app/
+
+# Install the package in development mode
+RUN pip install -e /app/
+
+# Configure ADB
+RUN echo "adb.tcpip=5037" > /root/.android/adb_usb.ini
+
+# Make start script executable
+RUN chmod +x /app/start.sh
+
+# Run the start script which handles ADB and FastAPI
+CMD ["/app/start.sh"]

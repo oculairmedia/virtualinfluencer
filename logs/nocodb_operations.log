@@ -1,1 +1,65 @@
-2024-12-01 05:33:49,127 - nocodb_operations - DEBUG - NocoDB logger initialized
+2024-12-02 05:50:05,322 - nocodb_operations - DEBUG - NocoDB logger initialized
+2024-12-02 05:50:30,547 - nocodb_operations - INFO - Initializing NocoDB storage...
+2024-12-02 05:50:30,547 - nocodb_operations - INFO - Loading NocoDB configuration...
+2024-12-02 05:50:30,548 - nocodb_operations - DEBUG - Looking for config at: /app/accounts/quecreate/nocodb.yml
+2024-12-02 05:50:30,572 - nocodb_operations - INFO - Testing NocoDB connection...
+2024-12-02 05:50:30,572 - nocodb_operations - DEBUG - NocoDB: Making GET request to http://192.168.50.114:8080/api/v1/health
+2024-12-02 05:50:30,580 - nocodb_operations - INFO - Verifying project pvazjom12m1ho5k...
+2024-12-02 05:50:30,581 - nocodb_operations - DEBUG - NocoDB: Making GET request to http://192.168.50.114:8080/api/v1/db/meta/projects/pvazjom12m1ho5k
+2024-12-02 05:50:30,588 - nocodb_operations - INFO - NocoDB connection successful!
+2024-12-02 05:50:30,589 - nocodb_operations - INFO - Initializing tables...
+2024-12-02 05:50:30,589 - nocodb_operations - INFO - NocoDB: Initializing tables...
+2024-12-02 05:50:30,590 - nocodb_operations - DEBUG - NocoDB: Checking project pvazjom12m1ho5k
+2024-12-02 05:50:30,590 - nocodb_operations - DEBUG - NocoDB: Making GET request to http://192.168.50.114:8080/api/v1/db/meta/projects/pvazjom12m1ho5k
+2024-12-02 05:50:30,597 - nocodb_operations - INFO - NocoDB: Project pvazjom12m1ho5k exists
+2024-12-02 05:50:30,598 - nocodb_operations - DEBUG - NocoDB: Getting existing tables
+2024-12-02 05:50:30,598 - nocodb_operations - DEBUG - NocoDB: Making GET request to http://192.168.50.114:8080/api/v1/db/meta/projects/pvazjom12m1ho5k/tables
+2024-12-02 05:50:30,609 - nocodb_operations - DEBUG - NocoDB: Found existing tables: ['interacted users', 'history filters users']
+2024-12-02 05:50:30,610 - nocodb_operations - DEBUG - NocoDB: Checking table Interacted Users
+2024-12-02 05:50:30,610 - nocodb_operations - INFO - NocoDB: Table Interacted Users already exists
+2024-12-02 05:50:30,610 - nocodb_operations - DEBUG - NocoDB: Checking table History Filters Users
+2024-12-02 05:50:30,611 - nocodb_operations - INFO - NocoDB: Table History Filters Users already exists
+2024-12-02 05:50:30,611 - nocodb_operations - INFO - NocoDB: Tables initialized successfully
+2024-12-02 05:50:30,613 - nocodb_operations - INFO - NocoDB storage initialized successfully!
+2024-12-02 05:50:31,381 - nocodb_operations - INFO - NocoDB: Initializing tables...
+2024-12-02 05:50:31,382 - nocodb_operations - DEBUG - NocoDB: Checking project pvazjom12m1ho5k
+2024-12-02 05:50:31,382 - nocodb_operations - DEBUG - NocoDB: Making GET request to http://192.168.50.114:8080/api/v1/db/meta/projects/pvazjom12m1ho5k
+2024-12-02 05:50:31,394 - nocodb_operations - INFO - NocoDB: Project pvazjom12m1ho5k exists
+2024-12-02 05:50:31,395 - nocodb_operations - DEBUG - NocoDB: Getting existing tables
+2024-12-02 05:50:31,395 - nocodb_operations - DEBUG - NocoDB: Making GET request to http://192.168.50.114:8080/api/v1/db/meta/projects/pvazjom12m1ho5k/tables
+2024-12-02 05:50:31,403 - nocodb_operations - DEBUG - NocoDB: Found existing tables: ['interacted users', 'history filters users']
+2024-12-02 05:50:31,403 - nocodb_operations - DEBUG - NocoDB: Checking table Interacted Users
+2024-12-02 05:50:31,403 - nocodb_operations - INFO - NocoDB: Table Interacted Users already exists
+2024-12-02 05:50:31,404 - nocodb_operations - DEBUG - NocoDB: Checking table History Filters Users
+2024-12-02 05:50:31,404 - nocodb_operations - INFO - NocoDB: Table History Filters Users already exists
+2024-12-02 05:50:31,404 - nocodb_operations - INFO - NocoDB: Tables initialized successfully
+2024-12-02 05:51:03,578 - nocodb_operations - DEBUG - Storing filtered user data for salman82332
+2024-12-02 05:51:03,579 - nocodb_operations - DEBUG - Getting table ID...
+2024-12-02 05:51:03,579 - nocodb_operations - DEBUG - NocoDB: Making GET request to http://192.168.50.114:8080/api/v1/db/meta/projects/pvazjom12m1ho5k/tables
+2024-12-02 05:51:03,590 - nocodb_operations - DEBUG - NocoDB: Making POST request to http://192.168.50.114:8080/api/v1/db/data/noco/pvazjom12m1ho5k/mli7x410oi9kpdh
+2024-12-02 05:51:03,643 - nocodb_operations - INFO - Successfully stored filtered user data for salman82332
+2024-12-02 05:51:31,056 - nocodb_operations - DEBUG - Storing filtered user data for photo_elsad
+2024-12-02 05:51:31,057 - nocodb_operations - DEBUG - Getting table ID...
+2024-12-02 05:51:31,058 - nocodb_operations - DEBUG - NocoDB: Making GET request to http://192.168.50.114:8080/api/v1/db/meta/projects/pvazjom12m1ho5k/tables
+2024-12-02 05:51:31,068 - nocodb_operations - DEBUG - NocoDB: Making POST request to http://192.168.50.114:8080/api/v1/db/data/noco/pvazjom12m1ho5k/mli7x410oi9kpdh
+2024-12-02 05:51:31,108 - nocodb_operations - INFO - Successfully stored filtered user data for photo_elsad
+2024-12-02 05:51:47,421 - nocodb_operations - DEBUG - Storing filtered user data for cesarnieto_beduino
+2024-12-02 05:51:47,421 - nocodb_operations - DEBUG - Getting table ID...
+2024-12-02 05:51:47,422 - nocodb_operations - DEBUG - NocoDB: Making GET request to http://192.168.50.114:8080/api/v1/db/meta/projects/pvazjom12m1ho5k/tables
+2024-12-02 05:51:47,430 - nocodb_operations - DEBUG - NocoDB: Making POST request to http://192.168.50.114:8080/api/v1/db/data/noco/pvazjom12m1ho5k/mli7x410oi9kpdh
+2024-12-02 05:51:47,467 - nocodb_operations - INFO - Successfully stored filtered user data for cesarnieto_beduino
+2024-12-02 05:52:13,871 - nocodb_operations - DEBUG - Storing filtered user data for deyved12_3
+2024-12-02 05:52:13,872 - nocodb_operations - DEBUG - Getting table ID...
+2024-12-02 05:52:13,872 - nocodb_operations - DEBUG - NocoDB: Making GET request to http://192.168.50.114:8080/api/v1/db/meta/projects/pvazjom12m1ho5k/tables
+2024-12-02 05:52:13,882 - nocodb_operations - DEBUG - NocoDB: Making POST request to http://192.168.50.114:8080/api/v1/db/data/noco/pvazjom12m1ho5k/mli7x410oi9kpdh
+2024-12-02 05:52:13,914 - nocodb_operations - INFO - Successfully stored filtered user data for deyved12_3
+2024-12-02 05:52:39,307 - nocodb_operations - DEBUG - Storing filtered user data for aaa7772599
+2024-12-02 05:52:39,308 - nocodb_operations - DEBUG - Getting table ID...
+2024-12-02 05:52:39,308 - nocodb_operations - DEBUG - NocoDB: Making GET request to http://192.168.50.114:8080/api/v1/db/meta/projects/pvazjom12m1ho5k/tables
+2024-12-02 05:52:39,317 - nocodb_operations - DEBUG - NocoDB: Making POST request to http://192.168.50.114:8080/api/v1/db/data/noco/pvazjom12m1ho5k/mli7x410oi9kpdh
+2024-12-02 05:52:39,353 - nocodb_operations - INFO - Successfully stored filtered user data for aaa7772599
+2024-12-02 05:53:02,071 - nocodb_operations - DEBUG - Storing filtered user data for dr.saul_sanchez
+2024-12-02 05:53:02,072 - nocodb_operations - DEBUG - Getting table ID...
+2024-12-02 05:53:02,072 - nocodb_operations - DEBUG - NocoDB: Making GET request to http://192.168.50.114:8080/api/v1/db/meta/projects/pvazjom12m1ho5k/tables
+2024-12-02 05:53:02,080 - nocodb_operations - DEBUG - NocoDB: Making POST request to http://192.168.50.114:8080/api/v1/db/data/noco/pvazjom12m1ho5k/mli7x410oi9kpdh
+2024-12-02 05:53:02,114 - nocodb_operations - INFO - Successfully stored filtered user data for dr.saul_sanchez

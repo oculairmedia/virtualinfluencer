@@ -23,7 +23,7 @@ restart-atx-agent: false
 disable-block-detection: false
 disable-filters: false
 dont-type: false
-use-nocodb: true
+use-nocodb: true  # Enable NocoDB plugin
 init-db: true
 # scrape_to_file: scraped.txt
 total-crashes-limit: 5

@@ -289,27 +289,24 @@ async def start_session(request: SessionRequest):
         
         try:
             import subprocess
-            import threading
+            import asyncio
             
             # Set up environment variables
             env = os.environ.copy()
             env["PYTHONPATH"] = base_dir
             
-            def run_process_in_thread():
+            async def run_process():
                 try:
                     logger.info(f"Starting process with command: {' '.join(cmd)}")
                     logger.info(f"Working directory: {base_dir}")
                     logger.info(f"PYTHONPATH: {env['PYTHONPATH']}")
                     
-                    process = subprocess.Popen(
-                        cmd,
+                    process = await asyncio.create_subprocess_exec(
+                        *cmd,
                         cwd=base_dir,
                         env=env,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                        bufsize=1,
-                        universal_newlines=True
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
                     )
                     
                     # Store process info
@@ -324,16 +321,23 @@ async def start_session(request: SessionRequest):
                     
                     # Monitor process output
                     while True:
-                        output = process.stdout.readline()
-                        if output == '' and process.poll() is not None:
+                        try:
+                            line = await process.stdout.readline()
+                            if not line:
+                                break
+                            line = line.decode('utf-8').strip()
+                            if line:
+                                logger.info(f"Bot output: {line}")
+                        except Exception as e:
+                            logger.error(f"Error reading process output: {str(e)}")
                             break
-                        if output:
-                            logger.info(f"Bot output: {output.strip()}")
                             
-                    # Process completed
-                    return_code = process.poll()
+                    # Wait for process to complete
+                    stdout, stderr = await process.communicate()
+                    return_code = process.returncode
+                    
                     if return_code != 0:
-                        error_output = process.stderr.read()
+                        error_output = stderr.decode('utf-8') if stderr else "Unknown error"
                         logger.error(f"Bot process failed with code {return_code}: {error_output}")
                         active_sessions[request.account]["status"] = "error"
                         active_sessions[request.account]["errors"] = error_output
@@ -348,13 +352,9 @@ async def start_session(request: SessionRequest):
                         active_sessions[request.account]["errors"] = str(e)
                     raise HTTPException(status_code=500, detail=f"Failed to start process: {str(e)}")
             
-            # Start process in background thread
-            thread = threading.Thread(target=run_process_in_thread)
-            thread.daemon = True
-            thread.start()
-            
-            # Register background task
-            register_task(thread)
+            # Create and register the async task
+            task = asyncio.create_task(run_process())
+            register_task(task)
             
             return {"status": "started", "account": request.account}
             
