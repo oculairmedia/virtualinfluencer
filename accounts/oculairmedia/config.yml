@@ -1,0 +1,152 @@
+##############################################################################
+# SCRATCHPAD - IMPORTANT NOTES FOR LLMs
+##############################################################################
+# Last updated: 2024-01-21 13:43
+# 
+# FORMATTING RULES:
+# 1. All lists/arrays must use proper YAML syntax with square brackets and commas
+#    Example: blogger-followers: [ "user1", "user2", "user3" ]
+# 2. Usernames should be in quotes to handle special characters
+# 3. Time ranges use hyphens without spaces: "12-18" not "12 - 18"
+#
+# CURRENT STRATEGY:
+# - Target: Followers of established 3D artists and motion designers
+# - Speed: Moderate interactions (speed-multiplier: 0.4) for stability
+# - Session Timing: 6-12 minute breaks between sessions
+# - Moderate interaction limits to maintain stability
+# - No mandatory word requirements
+#
+# INSTRUCTIONS FOR FUTURE LLMs:
+# 1. When modifying this file, update the "Last updated" timestamp above
+# 2. Document any strategy changes in the CURRENT STRATEGY section
+# 3. Maintain proper YAML formatting as per the rules above
+# 4. Keep this scratchpad section at the top of the file
+##############################################################################
+
+##############################################################################
+# For more information on parameters, refer to: 
+# https://docs.gramaddict.org/#/configuration?id=configuration-file
+#
+# Note: be sure to comment out any parameters not used by adding a # in front
+# AGAIN: YOU DON'T HAVE TO DELETE THE LINE, BUT ONLY COMMENT IT WITH A #!
+##############################################################################
+# General Configuration
+##############################################################################
+
+username: "oculairmedia"
+device: 192.168.50.202:42356
+app-id: com.instagram.android
+use-cloned-app: false
+allow-untested-ig-version: true
+screen-sleep: true
+screen-record: false
+speed-multiplier: 0.4
+debug: false
+close-apps: true
+kill-atx-agent: false
+restart-atx-agent: false
+disable-block-detection: false
+disable-filters: false
+dont-type: false
+use-nocodb: true  # Enable NocoDB plugin
+init-db: true
+total-crashes-limit: 5
+count-app-crashes: false
+shuffle-jobs: true
+truncate-sources: 2-3
+
+##############################################################################
+# Actions
+##############################################################################
+
+## Interaction (active jobs)
+hashtag-posts-recent: [ "motiongraphics", "c4d", "3dart", "motiondesign", "animation", "cgi", "3danimation", "mograph", "octane", "redshift", "sidefx", "houdini", "proceduralart" ]
+blogger-followers: [ "laundry_studios", "tinjutkin", "peter_tarka", "perry__cooper", "antonin.work", "mauro_cosenza" ]
+feed: 2-5
+
+## Special modifier for jobs and sources
+watch-video-time: 20-45
+watch-photo-time: 5-15
+delete-interacted-users: true
+comment-percentage: 15-25
+pm-percentage: 5-10
+
+## Unfollow (unfollow jobs)
+#unfollow: 10-20
+#unfollow-any: 10-20
+#unfollow-non-followers: 10-20
+#unfollow-any-non-followers: 10-20
+#unfollow-any-followers: 10-20
+
+## Special modifier for unfollow jobs
+#sort-followers-newest-to-oldest: false
+#unfollow-delay: 15
+
+## Special modifier for remove followers
+delete-removed-followers: true
+
+## Post Processing
+analytics: false
+telegram-reports: false
+
+##############################################################################
+# Source Limits
+##############################################################################
+
+interactions-count: 15-25
+likes-count: 1-2
+likes-percentage: 70-80
+stories-count: 1-2
+stories-percentage: 30-40
+carousel-count: 1-2
+carousel-percentage: 40-50
+interact-percentage: 35-45
+follow-percentage: 25-35
+follow-limit: 30
+skipped-list-limit: 8-12
+skipped-posts-limit: 4
+fling-when-skipped: 0
+min-following: 100
+max-comments-pro-user: 1
+
+##############################################################################
+# Total Limits Per Session
+##############################################################################
+
+total-likes-limit: 80-120
+total-follows-limit: 20-30
+total-unfollows-limit: 30
+total-watches-limit: 60-100
+total-successful-interactions-limit: 60-100
+total-interactions-limit: 120-180
+total-comments-limit: 8-12
+total-pm-limit: 5-8
+total-scraped-limit: 100-150
+
+##############################################################################
+# Ending Session Conditions
+##############################################################################
+
+end-if-likes-limit-reached: true
+end-if-follows-limit-reached: true
+end-if-watches-limit-reached: true
+end-if-comments-limit-reached: true
+end-if-pm-limit-reached: true
+
+##############################################################################
+# Scheduling
+##############################################################################
+
+working-hours: [ "00.00-23.59" ]
+time-delta: 25-45
+repeat: 280-320
+total-sessions: -1
+
+##############################################################################
+# API Integration
+##############################################################################
+
+# API configuration is now handled by environment variables:
+# NOCODB_BASE_URL=http://192.168.50.114:8080
+# NOCODB_TOKEN=your_token_here
+# NOCODB_PROJECT_ID=psteag79ewf0o7d
