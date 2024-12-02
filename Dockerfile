@@ -38,6 +38,8 @@ async def health_check():\n\
 async def start_session(request: SessionRequest):\n\
     try:\n\
         account_dir = f"/app/accounts/{request.account}"\n\
+        print(f"Account directory: {account_dir}")\n\
+        print(f"Directory exists: {os.path.exists(account_dir)}")\n\
         if not os.path.exists(account_dir):\n\
             os.makedirs(account_dir)\n\
 \n\
@@ -53,6 +55,7 @@ async def start_session(request: SessionRequest):\n\
 \n\
         return {"message": f"Started session for {request.account}", "pid": process.pid}\n\
     except Exception as e:\n\
+        print(f"Error in start_session: {str(e)}")\n\
         raise HTTPException(status_code=500, detail=str(e))\n\
 \n\
 @app.post("/stop_session")\n\
@@ -63,6 +66,7 @@ async def stop_session(request: SessionRequest):\n\
         subprocess.run(cmd, shell=True)\n\
         return {"message": f"Stopped session for {request.account}"}\n\
     except Exception as e:\n\
+        print(f"Error in stop_session: {str(e)}")\n\
         raise HTTPException(status_code=500, detail=str(e))\n\
 \n\
 @app.get("/session_status/{account}")\n\
@@ -92,6 +96,7 @@ async def get_session_status(account: str):\n\
             "duration": duration\n\
         }\n\
     except Exception as e:\n\
+        print(f"Error in session_status: {str(e)}")\n\
         raise HTTPException(status_code=500, detail=str(e))\n\
 \n\
 @app.get("/accounts")\n\
@@ -99,13 +104,18 @@ async def list_accounts():\n\
     try:\n\
         accounts = []\n\
         accounts_dir = "/app/accounts"\n\
+        print(f"Accounts directory: {accounts_dir}")\n\
+        print(f"Directory exists: {os.path.exists(accounts_dir)}")\n\
         if os.path.exists(accounts_dir):\n\
+            print(f"Contents: {os.listdir(accounts_dir)}")\n\
             for account in os.listdir(accounts_dir):\n\
                 account_path = os.path.join(accounts_dir, account)\n\
                 if os.path.isdir(account_path):\n\
                     # Get config if available\n\
                     config = {}\n\
                     config_file = os.path.join(account_path, "config.yml")\n\
+                    print(f"Config file: {config_file}")\n\
+                    print(f"Config exists: {os.path.exists(config_file)}")\n\
                     if os.path.exists(config_file):\n\
                         with open(config_file, "r") as f:\n\
                             config = yaml.safe_load(f)\n\
@@ -116,6 +126,7 @@ async def list_accounts():\n\
                     })\n\
         return {"accounts": accounts}\n\
     except Exception as e:\n\
+        print(f"Error in list_accounts: {str(e)}")\n\
         raise HTTPException(status_code=500, detail=str(e))\n\
 ' > /app/api/main.py
 
@@ -136,7 +147,7 @@ if [ ! -z "$ADB_DEVICE_IP" ] && [ ! -z "$ADB_DEVICE_PORT" ]; then\n\
 fi\n\
 \n\
 # Start FastAPI server\n\
-cd /app/api && uvicorn main:app --host 0.0.0.0 --port 8000\n\
+cd /app/api && uvicorn main:app --host 0.0.0.0 --port 8000 --log-level debug\n\
 ' > /app/start.sh
 
 RUN chmod +x /app/start.sh
