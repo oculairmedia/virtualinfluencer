@@ -178,3 +178,9 @@ docker-compose build
 # Run container
 docker-compose up -d
 ```
+docker push oculair/virtualinfluencer:latest
+
+to test use
+curl -X POST http://localhost:8000/start_session -H Content-Type: application/json -d {"account": "quecreate"}
+
+curl http://192.168.50.90:8000/session_status/quecreate

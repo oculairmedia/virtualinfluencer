@@ -1,5 +1,4 @@
 from fastapi import FastAPI, HTTPException, Body
-import logging
 import asyncio
 from contextlib import suppress
 from typing import Dict, Optional
@@ -23,19 +22,12 @@ import psutil
 import json
 import yaml
 from typing import Any, Dict
+from api.logging_config import setup_logging, log_session_event
 
 app = FastAPI()
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs', 'api.log'))
-    ]
-)
-logger = logging.getLogger(__name__)
+api_logger, session_logger = setup_logging()
 
 # Initialize plugin loader
 plugin_loader = PluginLoader()
@@ -63,7 +55,7 @@ async def cleanup_tasks():
     if not tasks:
         return
         
-    logger.info(f"Cleaning up {len(tasks)} active tasks...")
+    api_logger.info(f"Cleaning up {len(tasks)} active tasks...")
     for task in tasks:
         if not task.done():
             task.cancel()
@@ -195,14 +187,14 @@ async def check_session_timeout():
                 if last_interaction:
                     idle_time = current_time - last_interaction
                     if idle_time > timedelta(minutes=SESSION_TIMEOUT_MINUTES):
-                        logger.warning(f"Session timeout for account {account} after {idle_time}")
+                        api_logger.warning(f"Session timeout for account {account} after {idle_time}")
                         # Stop the session
                         await stop_session(SessionRequest(account=account))
             
             # Check every minute
             await asyncio.sleep(60)
         except Exception as e:
-            logger.error(f"Error in session timeout checker: {str(e)}")
+            api_logger.error(f"Error in session timeout checker: {str(e)}")
             await asyncio.sleep(60)
 
 @app.on_event("startup")
@@ -220,16 +212,16 @@ async def startup_event():
         # Start session timeout checker
         asyncio.create_task(check_session_timeout())
         
-        logger.info("API startup complete")
+        api_logger.info("API startup complete")
     except Exception as e:
-        logger.error(f"Error during startup: {e}")
+        api_logger.error(f"Error during startup: {e}")
         raise
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup plugins and resources on shutdown"""
     await cleanup_tasks()
-    logger.info("All tasks cleaned up.")
+    api_logger.info("All tasks cleaned up.")
 
 @app.get("/")
 async def root():
@@ -274,18 +266,18 @@ async def start_session(request: SessionRequest):
         config_path = os.path.join(base_dir, "accounts", request.account, "config.yml")
         run_script = os.path.join(base_dir, "run.py")
         
-        logger.info(f"Starting session for account {request.account} with config {config_path}")
+        api_logger.info(f"Starting session for account {request.account} with config {config_path}")
         
         if not os.path.exists(config_path):
             error_msg = f"Configuration not found for account: {request.account} at path: {config_path}"
-            logger.error(error_msg)
+            api_logger.error(error_msg)
             raise HTTPException(status_code=404, detail=error_msg)
             
         # Create a background task to run the bot
         cmd = ["python3", run_script, "--config", config_path, "--use-nocodb", "--debug"]
-        logger.info(f"Running command: {' '.join(cmd)}")
-        logger.info(f"Working directory: {base_dir}")
-        logger.info(f"Environment PYTHONPATH: {os.environ.get('PYTHONPATH')}")
+        api_logger.info(f"Running command: {' '.join(cmd)}")
+        api_logger.info(f"Working directory: {base_dir}")
+        api_logger.info(f"Environment PYTHONPATH: {os.environ.get('PYTHONPATH')}")
         
         try:
             import subprocess
@@ -297,9 +289,9 @@ async def start_session(request: SessionRequest):
             
             async def run_process():
                 try:
-                    logger.info(f"Starting process with command: {' '.join(cmd)}")
-                    logger.info(f"Working directory: {base_dir}")
-                    logger.info(f"PYTHONPATH: {env['PYTHONPATH']}")
+                    api_logger.info(f"Starting process with command: {' '.join(cmd)}")
+                    api_logger.info(f"Working directory: {base_dir}")
+                    api_logger.info(f"PYTHONPATH: {env['PYTHONPATH']}")
                     
                     process = await asyncio.create_subprocess_exec(
                         *cmd,
@@ -327,9 +319,9 @@ async def start_session(request: SessionRequest):
                                 break
                             line = line.decode('utf-8').strip()
                             if line:
-                                logger.info(f"Bot output: {line}")
+                                api_logger.info(f"Bot output: {line}")
                         except Exception as e:
-                            logger.error(f"Error reading process output: {str(e)}")
+                            api_logger.error(f"Error reading process output: {str(e)}")
                             break
                             
                     # Wait for process to complete
@@ -338,15 +330,15 @@ async def start_session(request: SessionRequest):
                     
                     if return_code != 0:
                         error_output = stderr.decode('utf-8') if stderr else "Unknown error"
-                        logger.error(f"Bot process failed with code {return_code}: {error_output}")
+                        api_logger.error(f"Bot process failed with code {return_code}: {error_output}")
                         active_sessions[request.account]["status"] = "error"
                         active_sessions[request.account]["errors"] = error_output
                     else:
-                        logger.info("Bot process completed successfully")
+                        api_logger.info("Bot process completed successfully")
                         active_sessions[request.account]["status"] = "completed"
                         
                 except Exception as e:
-                    logger.error(f"Failed to start process: {str(e)}")
+                    api_logger.error(f"Failed to start process: {str(e)}")
                     if request.account in active_sessions:
                         active_sessions[request.account]["status"] = "error"
                         active_sessions[request.account]["errors"] = str(e)
@@ -359,18 +351,18 @@ async def start_session(request: SessionRequest):
             return {"status": "started", "account": request.account}
             
         except Exception as e:
-            logger.error(f"Failed to start process: {str(e)}")
+            api_logger.error(f"Failed to start process: {str(e)}")
             raise HTTPException(status_code=500, detail="Failed to start bot process")
             
     except Exception as e:
-        logger.error(f"Error starting session: {str(e)}")
+        api_logger.error(f"Error starting session: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error starting session: {str(e)}")
 
 @app.post("/stop_session")
 async def stop_session(request: SessionRequest):
     """Stop a running bot session for the specified account"""
     account = request.account
-    logger.info(f"Attempting to stop session for account: {account}")
+    api_logger.info(f"Attempting to stop session for account: {account}")
     
     if account not in active_sessions:
         raise HTTPException(status_code=404, detail="No active session found for this account")
@@ -397,7 +389,7 @@ async def stop_session(request: SessionRequest):
                     for p in alive:
                         p.kill()
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired) as e:
-                logger.warning(f"Process termination warning for {account}: {str(e)}")
+                api_logger.warning(f"Process termination warning for {account}: {str(e)}")
         
         # Cancel any running tasks for this session
         if 'task' in session:
@@ -414,11 +406,11 @@ async def stop_session(request: SessionRequest):
         session['end_time'] = datetime.now()
         session['process'] = None
         
-        logger.info(f"Successfully stopped session for account: {account}")
+        api_logger.info(f"Successfully stopped session for account: {account}")
         return {"status": "success", "message": f"Session stopped for account {account}"}
     
     except Exception as e:
-        logger.error(f"Error stopping session for account {account}: {str(e)}")
+        api_logger.error(f"Error stopping session for account {account}: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to stop session: {str(e)}"
@@ -462,13 +454,13 @@ def get_process_info(pid: int) -> dict:
                 'total_processes': len(children) + 1
             }
     except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
-        logger.warning(f"Could not get process info for PID {pid}: {str(e)}")
+        api_logger.warning(f"Could not get process info for PID {pid}: {str(e)}")
         return None
 
 @app.get("/session_status")
 async def get_session_status(account: str):
     """Get the current status of a bot session with detailed process information"""
-    logger.info(f"Retrieving detailed session status for account: {account}")
+    api_logger.info(f"Retrieving detailed session status for account: {account}")
     
     if account not in active_sessions:
         return SessionStatus(
@@ -588,7 +580,7 @@ async def get_bot_stats(account: str) -> BotStats:
         return stats
         
     except Exception as e:
-        logger.error(f"Error getting bot stats for account {account}: {str(e)}")
+        api_logger.error(f"Error getting bot stats for account {account}: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get bot statistics: {str(e)}"
@@ -629,7 +621,7 @@ async def get_accounts() -> list[AccountInfo]:
                             if start_time_str:
                                 last_session_time = datetime.strptime(start_time_str, "%Y-%m-%d %H:%M:%S.%f")
                 except (json.JSONDecodeError, ValueError) as e:
-                    logger.error(f"Error parsing session file for account {account_name}: {str(e)}")
+                    api_logger.error(f"Error parsing session file for account {account_name}: {str(e)}")
             
             # Check if config exists
             config_exists = os.path.exists(os.path.join(account_dir, 'config.yml'))
@@ -649,7 +641,7 @@ async def get_accounts() -> list[AccountInfo]:
         return accounts
         
     except Exception as e:
-        logger.error(f"Error getting accounts list: {str(e)}")
+        api_logger.error(f"Error getting accounts list: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get accounts list: {str(e)}"
@@ -716,13 +708,13 @@ async def get_interaction_limits(account: str) -> InteractionLimits:
         return limits
         
     except json.JSONDecodeError as e:
-        logger.error(f"Error parsing session file for account {account}: {str(e)}")
+        api_logger.error(f"Error parsing session file for account {account}: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to parse session configuration: {str(e)}"
         )
     except Exception as e:
-        logger.error(f"Error getting interaction limits for account {account}: {str(e)}")
+        api_logger.error(f"Error getting interaction limits for account {account}: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get interaction limits: {str(e)}"
@@ -763,20 +755,20 @@ async def get_account_config(account: str) -> AccountConfig:
             config = AccountConfig(**converted_config)
             return config
         except ValueError as e:
-            logger.error(f"Error validating config for account {account}: {str(e)}")
+            api_logger.error(f"Error validating config for account {account}: {str(e)}")
             raise HTTPException(
                 status_code=422,
                 detail=f"Invalid configuration format: {str(e)}"
             )
             
     except yaml.YAMLError as e:
-        logger.error(f"Error parsing config file for account {account}: {str(e)}")
+        api_logger.error(f"Error parsing config file for account {account}: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to parse configuration file: {str(e)}"
         )
     except Exception as e:
-        logger.error(f"Error getting config for account {account}: {str(e)}")
+        api_logger.error(f"Error getting config for account {account}: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Failed to get account configuration: {str(e)}"
@@ -824,13 +816,13 @@ async def update_account_config(account: str, update: UpdateAccountConfig):
         with open(config_path, 'w') as f:
             yaml.safe_dump(current_config, f, default_flow_style=False)
 
-        logger.info(f"Updated configuration for account {account}")
+        api_logger.info(f"Updated configuration for account {account}")
         return {"status": "success", "message": f"Configuration updated for account {account}"}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error updating configuration for account {account}: {str(e)}")
+        api_logger.error(f"Error updating configuration for account {account}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to update configuration: {str(e)}")
 
 @app.post("/account_config/{account}/add")
@@ -872,13 +864,13 @@ async def add_config_entry(account: str, entry: ConfigEntry):
         # Write back the updated lines
         write_file_lines(config_path, new_lines)
 
-        logger.info(f"Added configuration entry {key} for account {account}")
+        api_logger.info(f"Added configuration entry {key} for account {account}")
         return {"status": "success", "message": f"Added configuration entry {key}"}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error adding configuration entry for account {account}: {str(e)}")
+        api_logger.error(f"Error adding configuration entry for account {account}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to add configuration entry: {str(e)}")
 
 @app.post("/account_config/{account}/array/add")
@@ -935,13 +927,13 @@ async def add_array_item(account: str, entry: ArrayConfigEntry):
         # Write back the updated lines
         write_file_lines(config_path, new_lines)
 
-        logger.info(f"Added item to array {key} for account {account}")
+        api_logger.info(f"Added item to array {key} for account {account}")
         return {"status": "success", "message": f"Added item to array {key}"}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error adding array item for account {account}: {str(e)}")
+        api_logger.error(f"Error adding array item for account {account}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to add array item: {str(e)}")
 
 @app.delete("/account_config/{account}/add")
@@ -986,13 +978,13 @@ async def remove_config_entry(account: str, key: str):
         with open(config_path, 'w') as f:
             yaml.safe_dump(current_config, f, default_flow_style=False)
 
-        logger.info(f"Removed configuration entry {key} for account {account}")
+        api_logger.info(f"Removed configuration entry {key} for account {account}")
         return {"status": "success", "message": f"Removed configuration entry {key}"}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error removing configuration entry for account {account}: {str(e)}")
+        api_logger.error(f"Error removing configuration entry for account {account}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to remove configuration entry: {str(e)}")
 
 @app.post("/account_config/{account}/array/add")
@@ -1049,13 +1041,13 @@ async def add_array_item(account: str, entry: ArrayConfigEntry):
         # Write back the updated lines
         write_file_lines(config_path, new_lines)
 
-        logger.info(f"Added item to array {key} for account {account}")
+        api_logger.info(f"Added item to array {key} for account {account}")
         return {"status": "success", "message": f"Added item to array {key}"}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error adding array item for account {account}: {str(e)}")
+        api_logger.error(f"Error adding array item for account {account}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to add array item: {str(e)}")
 
 @app.delete("/account_config/{account}/array/{key}/remove")
@@ -1114,13 +1106,13 @@ async def remove_array_item(account: str, key: str, entry: ArrayConfigEntry):
         # Write back the updated lines
         write_file_lines(config_path, new_lines)
 
-        logger.info(f"Removed item from array {key} for account {account}")
+        api_logger.info(f"Removed item from array {key} for account {account}")
         return {"status": "success", "message": f"Removed item from array {key}"}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error removing array item for account {account}: {str(e)}")
+        api_logger.error(f"Error removing array item for account {account}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to remove array item: {str(e)}")
 
 def read_file_lines(file_path: str) -> list[str]:
@@ -1161,6 +1153,46 @@ def update_yaml_value_in_lines(lines: list[str], key: str, value: Any) -> list[s
         new_lines.append(f"{key}: {value}\n")
     
     return new_lines
+
+@app.get("/logs/{account}")
+async def get_logs(account: str, lines: int = 100):
+    """Retrieve the most recent logs for a specific account"""
+    try:
+        log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs')
+        api_log_path = os.path.join(log_dir, 'api.log')
+        session_log_path = os.path.join(log_dir, 'sessions.log')
+        
+        logs = {
+            'api_logs': [],
+            'session_logs': []
+        }
+        
+        # Read API logs
+        if os.path.exists(api_log_path):
+            with open(api_log_path, 'r') as f:
+                api_logs = f.readlines()
+                logs['api_logs'] = [
+                    line.strip() for line in api_logs[-lines:]
+                    if account in line
+                ]
+        
+        # Read session logs
+        if os.path.exists(session_log_path):
+            with open(session_log_path, 'r') as f:
+                session_logs = f.readlines()
+                logs['session_logs'] = [
+                    line.strip() for line in session_logs[-lines:]
+                    if account in line
+                ]
+        
+        return logs
+        
+    except Exception as e:
+        api_logger.error(f"Error retrieving logs for account {account}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve logs: {str(e)}"
+        )
 
 @app.get("/health")
 async def health_check():
