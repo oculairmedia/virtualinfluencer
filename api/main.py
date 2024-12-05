@@ -1,36 +1,81 @@
-from fastapi import FastAPI, HTTPException, Body
-import asyncio
-from contextlib import suppress
-from typing import Dict, Optional
-from api.plugins.plugin_loader import PluginLoader
-from api.plugins.base_plugin import BasePlugin
-from api.config.nocodb import (
-    NOCODB_BASE_URL,
-    NOCODB_TOKEN,
-    NOCODB_PROJECT_ID,
-    NOCODB_HISTORY_FILTERS_TABLE_ID,
-    NOCODB_HISTORY_FILTERS_VIEW_ID,
-    NOCODB_INTERACTED_USERS_TABLE_ID,
-    NOCODB_INTERACTED_USERS_VIEW_ID
-)
+import logging
 import os
-import sys
+import asyncio
 from datetime import datetime, timedelta
-from api.history import HistoryManager, Interaction
+from typing import Dict, Optional, Any
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import psutil
-import json
-import yaml
-from typing import Any, Dict
-from api.logging_config import setup_logging, log_session_event
+from api.services.session_service import SessionService
+from api.services.account_service import AccountService
+from api.routers import health, accounts, sessions
 
-app = FastAPI()
+# Setup logging
+def setup_logging():
+    log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs")
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
 
-# Configure logging
-api_logger, session_logger = setup_logging()
+    # API Logger
+    api_logger = logging.getLogger("api")
+    api_logger.setLevel(logging.DEBUG)
+    api_handler = logging.FileHandler(os.path.join(log_dir, "api.log"))
+    api_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    api_logger.addHandler(api_handler)
 
-# Initialize plugin loader
-plugin_loader = PluginLoader()
+    # Session Logger
+    session_logger = logging.getLogger("session")
+    session_logger.setLevel(logging.DEBUG)
+    session_handler = logging.FileHandler(os.path.join(log_dir, "session.log"))
+    session_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    session_logger.addHandler(session_handler)
+
+    return api_logger, session_logger
+
+app = FastAPI(title="Instagram Automation API")
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Initialize services and loggers
+@app.on_event("startup")
+async def startup_event():
+    api_logger, session_logger = setup_logging()
+    
+    # Set base directories
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    accounts_dir = os.path.join(base_dir, "accounts")
+    
+    # Initialize services
+    app.state.account_service = AccountService(accounts_dir)
+    app.state.session_service = SessionService(accounts_dir, session_logger)
+    
+    # Add loggers to app state
+    app.state.api_logger = api_logger
+    app.state.session_logger = session_logger
+    
+    api_logger.info("API started successfully")
+
+# Include routers
+app.include_router(health.router)
+app.include_router(accounts.router)
+app.include_router(sessions.router)
+
+# Error handling middleware
+@app.middleware("http")
+async def error_handling_middleware(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as e:
+        request.app.state.api_logger.error(f"Unhandled error: {str(e)}")
+        raise
 
 # Track active tasks
 active_tasks = set()
@@ -55,7 +100,7 @@ async def cleanup_tasks():
     if not tasks:
         return
         
-    api_logger.info(f"Cleaning up {len(tasks)} active tasks...")
+    app.state.api_logger.info(f"Cleaning up {len(tasks)} active tasks...")
     for task in tasks:
         if not task.done():
             task.cancel()
@@ -187,234 +232,21 @@ async def check_session_timeout():
                 if last_interaction:
                     idle_time = current_time - last_interaction
                     if idle_time > timedelta(minutes=SESSION_TIMEOUT_MINUTES):
-                        api_logger.warning(f"Session timeout for account {account} after {idle_time}")
+                        app.state.api_logger.warning(f"Session timeout for account {account} after {idle_time}")
                         # Stop the session
                         await stop_session(SessionRequest(account=account))
             
             # Check every minute
             await asyncio.sleep(60)
         except Exception as e:
-            api_logger.error(f"Error in session timeout checker: {str(e)}")
+            app.state.api_logger.error(f"Error in session timeout checker: {str(e)}")
             await asyncio.sleep(60)
-
-@app.on_event("startup")
-async def startup_event():
-    """Initialize API on startup"""
-    try:
-        # Create logs directory if it doesn't exist
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        logs_dir = os.path.join(base_dir, 'logs')
-        os.makedirs(logs_dir, exist_ok=True)
-        
-        # Initialize plugins (temporarily disabled)
-        # await plugin_loader.load_plugins()
-        
-        # Start session timeout checker
-        asyncio.create_task(check_session_timeout())
-        
-        api_logger.info("API startup complete")
-    except Exception as e:
-        api_logger.error(f"Error during startup: {e}")
-        raise
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup plugins and resources on shutdown"""
     await cleanup_tasks()
-    api_logger.info("All tasks cleaned up.")
-
-@app.get("/")
-async def root():
-    return {"message": "Welcome to the Instagram Bot API"}
-
-@app.post("/save_history_filters")
-async def save_history_filters(account: str, filters: Dict):
-    """Save history filters for an account"""
-    # Implementation for saving history filters
-    pass
-
-@app.get("/get_history_filters")
-async def get_history_filters(account: str):
-    """Get history filters for an account"""
-    # Implementation for getting history filters
-    pass
-
-@app.post("/save_interaction")
-async def save_interaction(account: str, username: str, interaction_type: str):
-    """Save an interaction with a user"""
-    # Implementation for saving interaction
-    pass
-
-@app.get("/get_interactions")
-async def get_interactions(account: str, interaction_type: Optional[str] = None):
-    """Get interactions for an account"""
-    # Implementation for getting interactions
-    pass
-
-@app.delete("/clear_history")
-async def clear_history(account: str, history_type: Optional[str] = None):
-    """Clear history for an account"""
-    # Implementation for clearing history
-    pass
-
-@app.post("/start_session")
-async def start_session(request: SessionRequest):
-    """Start a bot session for the specified account"""
-    try:
-        # Get absolute paths
-        base_dir = "/app"  # Fixed path in Docker container
-        config_path = os.path.join(base_dir, "accounts", request.account, "config.yml")
-        run_script = os.path.join(base_dir, "run.py")
-        
-        api_logger.info(f"Starting session for account {request.account} with config {config_path}")
-        
-        if not os.path.exists(config_path):
-            error_msg = f"Configuration not found for account: {request.account} at path: {config_path}"
-            api_logger.error(error_msg)
-            raise HTTPException(status_code=404, detail=error_msg)
-            
-        # Create a background task to run the bot
-        cmd = ["python3", run_script, "--config", config_path, "--use-nocodb", "--debug"]
-        api_logger.info(f"Running command: {' '.join(cmd)}")
-        api_logger.info(f"Working directory: {base_dir}")
-        api_logger.info(f"Environment PYTHONPATH: {os.environ.get('PYTHONPATH')}")
-        
-        try:
-            import subprocess
-            import asyncio
-            
-            # Set up environment variables
-            env = os.environ.copy()
-            env["PYTHONPATH"] = base_dir
-            
-            async def run_process():
-                try:
-                    api_logger.info(f"Starting process with command: {' '.join(cmd)}")
-                    api_logger.info(f"Working directory: {base_dir}")
-                    api_logger.info(f"PYTHONPATH: {env['PYTHONPATH']}")
-                    
-                    process = await asyncio.create_subprocess_exec(
-                        *cmd,
-                        cwd=base_dir,
-                        env=env,
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE
-                    )
-                    
-                    # Store process info
-                    active_sessions[request.account] = {
-                        "process": process,
-                        "status": "running",
-                        "start_time": datetime.now(),
-                        "last_interaction": datetime.now(),
-                        "total_interactions": 0,
-                        "errors": None
-                    }
-                    
-                    # Monitor process output
-                    while True:
-                        try:
-                            line = await process.stdout.readline()
-                            if not line:
-                                break
-                            line = line.decode('utf-8').strip()
-                            if line:
-                                api_logger.info(f"Bot output: {line}")
-                        except Exception as e:
-                            api_logger.error(f"Error reading process output: {str(e)}")
-                            break
-                            
-                    # Wait for process to complete
-                    stdout, stderr = await process.communicate()
-                    return_code = process.returncode
-                    
-                    if return_code != 0:
-                        error_output = stderr.decode('utf-8') if stderr else "Unknown error"
-                        api_logger.error(f"Bot process failed with code {return_code}: {error_output}")
-                        active_sessions[request.account]["status"] = "error"
-                        active_sessions[request.account]["errors"] = error_output
-                    else:
-                        api_logger.info("Bot process completed successfully")
-                        active_sessions[request.account]["status"] = "completed"
-                        
-                except Exception as e:
-                    api_logger.error(f"Failed to start process: {str(e)}")
-                    if request.account in active_sessions:
-                        active_sessions[request.account]["status"] = "error"
-                        active_sessions[request.account]["errors"] = str(e)
-                    raise HTTPException(status_code=500, detail=f"Failed to start process: {str(e)}")
-            
-            # Create and register the async task
-            task = asyncio.create_task(run_process())
-            register_task(task)
-            
-            return {"status": "started", "account": request.account}
-            
-        except Exception as e:
-            api_logger.error(f"Failed to start process: {str(e)}")
-            raise HTTPException(status_code=500, detail="Failed to start bot process")
-            
-    except Exception as e:
-        api_logger.error(f"Error starting session: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error starting session: {str(e)}")
-
-@app.post("/stop_session")
-async def stop_session(request: SessionRequest):
-    """Stop a running bot session for the specified account"""
-    account = request.account
-    api_logger.info(f"Attempting to stop session for account: {account}")
-    
-    if account not in active_sessions:
-        raise HTTPException(status_code=404, detail="No active session found for this account")
-    
-    try:
-        session = active_sessions[account]
-        
-        # Terminate the process if it exists
-        if 'process' in session and session['process']:
-            process = session['process']
-            try:
-                # Try to terminate the main process
-                if process.pid:
-                    parent = psutil.Process(process.pid)
-                    children = parent.children(recursive=True)
-                    for child in children:
-                        child.terminate()
-                    parent.terminate()
-                    
-                    # Wait for processes to terminate
-                    gone, alive = psutil.wait_procs([parent] + children, timeout=3)
-                    
-                    # Force kill if still alive
-                    for p in alive:
-                        p.kill()
-            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired) as e:
-                api_logger.warning(f"Process termination warning for {account}: {str(e)}")
-        
-        # Cancel any running tasks for this session
-        if 'task' in session:
-            session['task'].cancel()
-            with suppress(asyncio.CancelledError):
-                await session['task']
-        
-        # Clean up session resources
-        if 'plugin' in session:
-            await session['plugin'].cleanup()
-        
-        # Update session status
-        session['status'] = 'stopped'
-        session['end_time'] = datetime.now()
-        session['process'] = None
-        
-        api_logger.info(f"Successfully stopped session for account: {account}")
-        return {"status": "success", "message": f"Session stopped for account {account}"}
-    
-    except Exception as e:
-        api_logger.error(f"Error stopping session for account {account}: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to stop session: {str(e)}"
-        )
+    app.state.api_logger.info("All tasks cleaned up.")
 
 def get_process_info(pid: int) -> dict:
     """Get detailed process information"""
@@ -454,666 +286,8 @@ def get_process_info(pid: int) -> dict:
                 'total_processes': len(children) + 1
             }
     except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
-        api_logger.warning(f"Could not get process info for PID {pid}: {str(e)}")
+        app.state.api_logger.warning(f"Could not get process info for PID {pid}: {str(e)}")
         return None
-
-@app.get("/session_status")
-async def get_session_status(account: str):
-    """Get the current status of a bot session with detailed process information"""
-    api_logger.info(f"Retrieving detailed session status for account: {account}")
-    
-    if account not in active_sessions:
-        return SessionStatus(
-            account=account,
-            status="inactive",
-            start_time=None,
-            last_interaction=None,
-            total_interactions=0,
-            is_responsive=False
-        )
-    
-    session = active_sessions[account]
-    current_time = datetime.now()
-    
-    # Get process information
-    process_info = None
-    memory_usage_mb = None
-    cpu_percent = None
-    uptime_minutes = None
-    is_responsive = False
-    
-    if 'process' in session and session['process'] and session['process'].pid:
-        process_info = get_process_info(session['process'].pid)
-        if process_info:
-            memory_usage_mb = process_info['total_memory_mb']
-            cpu_percent = process_info['main_process']['cpu_percent']
-            if session.get('start_time'):
-                uptime_minutes = (current_time - session['start_time']).total_seconds() / 60
-            is_responsive = True
-    
-    # Check if session should timeout
-    if session['status'] == 'running':
-        last_interaction = session.get('last_interaction', session.get('start_time'))
-        if last_interaction:
-            idle_time = current_time - last_interaction
-            if idle_time > timedelta(minutes=SESSION_TIMEOUT_MINUTES):
-                session['status'] = 'timeout_pending'
-                asyncio.create_task(stop_session(SessionRequest(account=account)))
-    
-    return SessionStatus(
-        account=account,
-        status=session.get('status', 'unknown'),
-        start_time=session.get('start_time'),
-        last_interaction=session.get('last_interaction'),
-        total_interactions=session.get('total_interactions', 0),
-        errors=session.get('errors'),
-        process_info=process_info,
-        memory_usage_mb=memory_usage_mb,
-        cpu_percent=cpu_percent,
-        uptime_minutes=round(uptime_minutes, 2) if uptime_minutes else None,
-        is_responsive=is_responsive
-    )
-
-@app.post("/test_interaction")
-async def test_interaction():
-    """Test endpoint to create a sample interaction"""
-    # Implementation for test interaction
-    pass
-
-@app.get("/bot_stats")
-async def get_bot_stats(account: str) -> BotStats:
-    """
-    Get comprehensive bot statistics for the specified account.
-    Includes 24-hour metrics, performance data, and resource usage trends.
-    """
-    try:
-        # Get history manager and initialize it
-        history_manager = HistoryManager()
-        
-        # Get current timestamp and 24 hours ago
-        now = datetime.now()
-        twenty_four_hours_ago = now - timedelta(hours=24)
-        
-        # Get all interactions in the last 24 hours
-        interactions = history_manager.get_interactions(account, start_time=twenty_four_hours_ago)
-        
-        # Calculate interaction statistics
-        total_interactions = len(interactions)
-        successful_interactions = sum(1 for i in interactions if not i.error)
-        failed_interactions = total_interactions - successful_interactions
-        success_rate = (successful_interactions / total_interactions * 100) if total_interactions > 0 else 0
-        
-        # Calculate average response time (from successful interactions)
-        response_times = [i.duration for i in interactions if i.duration and not i.error]
-        avg_response_time = sum(response_times) / len(response_times) if response_times else 0
-        
-        # Get current session info
-        session_info = active_sessions.get(account, {})
-        start_time = session_info.get('start_time')
-        current_duration = (now - start_time).total_seconds() / 3600 if start_time else None
-        
-        # Get process info for resource usage trends
-        process_info = None
-        if session_info.get('pid'):
-            try:
-                process = psutil.Process(session_info['pid'])
-                process_info = await get_process_info(session_info['pid'])
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass
-        
-        # Compile stats
-        stats = BotStats(
-            account=account,
-            total_interactions_24h=total_interactions,
-            successful_interactions_24h=successful_interactions,
-            failed_interactions_24h=failed_interactions,
-            success_rate_24h=success_rate,
-            average_response_time_ms=avg_response_time * 1000,  # Convert to milliseconds
-            uptime_hours=current_duration or 0.0,
-            total_sessions=1 if start_time else 0,  # Basic implementation, could be enhanced
-            current_session_duration=current_duration,
-            memory_usage_trend=[process_info['memory_usage_mb']] if process_info else [],
-            cpu_usage_trend=[process_info['cpu_percent']] if process_info else [],
-            error_count_24h=failed_interactions
-        )
-        
-        return stats
-        
-    except Exception as e:
-        api_logger.error(f"Error getting bot stats for account {account}: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get bot statistics: {str(e)}"
-        )
-
-@app.get("/accounts")
-async def get_accounts() -> list[AccountInfo]:
-    """
-    Get list of all configured accounts and their basic information.
-    Returns account usernames, profile stats, and session status.
-    """
-    try:
-        accounts_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'accounts')
-        accounts = []
-        
-        # List all account directories
-        for account_name in os.listdir(accounts_dir):
-            account_dir = os.path.join(accounts_dir, account_name)
-            if not os.path.isdir(account_dir):
-                continue
-                
-            # Get session data if available
-            session_file = os.path.join(account_dir, 'sessions.json')
-            profile_stats = {"posts": 0, "followers": 0, "following": 0}
-            last_session_time = None
-            
-            if os.path.exists(session_file):
-                try:
-                    with open(session_file, 'r') as f:
-                        sessions = json.loads(f.read())
-                        if sessions:
-                            # Get latest session
-                            latest_session = sessions[-1]
-                            # Get profile stats from latest session
-                            profile_stats = latest_session.get('profile', profile_stats)
-                            # Get session start time
-                            start_time_str = latest_session.get('start_time')
-                            if start_time_str:
-                                last_session_time = datetime.strptime(start_time_str, "%Y-%m-%d %H:%M:%S.%f")
-                except (json.JSONDecodeError, ValueError) as e:
-                    api_logger.error(f"Error parsing session file for account {account_name}: {str(e)}")
-            
-            # Check if config exists
-            config_exists = os.path.exists(os.path.join(account_dir, 'config.yml'))
-            
-            # Create account info
-            account_info = AccountInfo(
-                username=account_name,
-                total_posts=profile_stats.get('posts', 0),
-                total_followers=profile_stats.get('followers', 0),
-                total_following=profile_stats.get('following', 0),
-                last_session_time=last_session_time,
-                is_active=account_name in active_sessions,
-                config_exists=config_exists
-            )
-            accounts.append(account_info)
-        
-        return accounts
-        
-    except Exception as e:
-        api_logger.error(f"Error getting accounts list: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get accounts list: {str(e)}"
-        )
-
-@app.get("/interaction_limits")
-async def get_interaction_limits(account: str) -> InteractionLimits:
-    """
-    Get current interaction limits for the specified account.
-    Returns all configured limits including likes, follows, comments, PMs, etc.
-    """
-    try:
-        # Get session data from the account's sessions.json
-        session_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
-                                  'accounts', account, 'sessions.json')
-        
-        if not os.path.exists(session_file):
-            raise HTTPException(
-                status_code=404,
-                detail=f"Account {account} not found or has no session configuration"
-            )
-            
-        with open(session_file, 'r') as f:
-            session_data = json.loads(f.read())
-            
-        # Get the most recent session
-        if not session_data:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No sessions found for account {account}"
-            )
-            
-        latest_session = session_data[-1]
-        args = latest_session.get('args', {})
-        
-        # Parse limit ranges (e.g. "120-150" -> 150)
-        def parse_limit(limit_str):
-            if not limit_str:
-                return 0
-            try:
-                if isinstance(limit_str, (int, float)):
-                    return int(limit_str)
-                parts = str(limit_str).split('-')
-                return int(parts[-1])  # Take the upper limit
-            except (ValueError, IndexError):
-                return 0
-            
-        # Extract limits from session args
-        limits = InteractionLimits(
-            account=account,
-            likes_limit=parse_limit(args.get('total_likes_limit', 0)),
-            follow_limit=parse_limit(args.get('total_follows_limit', 0)),
-            unfollow_limit=parse_limit(args.get('total_unfollows_limit', 0)),
-            comments_limit=parse_limit(args.get('total_comments_limit', 0)),
-            pm_limit=parse_limit(args.get('total_pm_limit', 0)),
-            watch_limit=parse_limit(args.get('total_watches_limit', 0)),
-            success_limit=parse_limit(args.get('total_successful_interactions_limit', 0)),
-            total_limit=parse_limit(args.get('total_interactions_limit', 0)),
-            scraped_limit=parse_limit(args.get('total_scraped_limit', 0)),
-            crashes_limit=parse_limit(args.get('total_crashes_limit', 0)),
-            time_delta_session=parse_limit(args.get('time_delta_session', 0))
-        )
-        
-        return limits
-        
-    except json.JSONDecodeError as e:
-        api_logger.error(f"Error parsing session file for account {account}: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to parse session configuration: {str(e)}"
-        )
-    except Exception as e:
-        api_logger.error(f"Error getting interaction limits for account {account}: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get interaction limits: {str(e)}"
-        )
-
-@app.get("/account_config/{account}")
-async def get_account_config(account: str) -> AccountConfig:
-    """
-    Get configuration for a specific account.
-    Returns all settings from the account's config.yml file.
-    """
-    try:
-        config_file = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            'accounts',
-            account,
-            'config.yml'
-        )
-        
-        if not os.path.exists(config_file):
-            raise HTTPException(
-                status_code=404,
-                detail=f"Configuration file not found for account {account}"
-            )
-            
-        # Read and parse YAML config
-        with open(config_file, 'r') as f:
-            config_data = yaml.safe_load(f)
-            
-        # Convert YAML keys to match Pydantic model (replace hyphens with underscores)
-        converted_config = {}
-        for key, value in config_data.items():
-            new_key = key.replace('-', '_')
-            converted_config[new_key] = value
-            
-        # Create AccountConfig instance
-        try:
-            config = AccountConfig(**converted_config)
-            return config
-        except ValueError as e:
-            api_logger.error(f"Error validating config for account {account}: {str(e)}")
-            raise HTTPException(
-                status_code=422,
-                detail=f"Invalid configuration format: {str(e)}"
-            )
-            
-    except yaml.YAMLError as e:
-        api_logger.error(f"Error parsing config file for account {account}: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to parse configuration file: {str(e)}"
-        )
-    except Exception as e:
-        api_logger.error(f"Error getting config for account {account}: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to get account configuration: {str(e)}"
-        )
-
-@app.put("/account_config/{account}")
-async def update_account_config(account: str, update: UpdateAccountConfig):
-    """
-    Update configuration for a specific account.
-    Saves the provided settings to the account's config.yml file.
-    """
-    try:
-        # Construct path to account config
-        accounts_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "accounts")
-        account_dir = os.path.join(accounts_dir, account)
-        config_path = os.path.join(account_dir, "config.yml")
-
-        # Verify account directory exists
-        if not os.path.exists(account_dir):
-            raise HTTPException(status_code=404, detail=f"Account {account} not found")
-
-        # Read existing config
-        try:
-            with open(config_path, 'r') as f:
-                current_config = yaml.safe_load(f) or {}
-        except FileNotFoundError:
-            current_config = {}
-
-        # Convert keys to use hyphens instead of underscores
-        updated_config = {k.replace('_', '-'): v for k, v in update.config.items()}
-        
-        # Update config with new values
-        current_config.update(updated_config)
-
-        # Remove username from config if present to avoid duplicate
-        current_config.pop('username', None)
-
-        # Validate config using Pydantic model
-        try:
-            AccountConfig(username=account, **{k.replace('-', '_'): v for k, v in current_config.items()})
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Invalid configuration: {str(e)}")
-
-        # Save updated config
-        with open(config_path, 'w') as f:
-            yaml.safe_dump(current_config, f, default_flow_style=False)
-
-        api_logger.info(f"Updated configuration for account {account}")
-        return {"status": "success", "message": f"Configuration updated for account {account}"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        api_logger.error(f"Error updating configuration for account {account}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to update configuration: {str(e)}")
-
-@app.post("/account_config/{account}/add")
-async def add_config_entry(account: str, entry: ConfigEntry):
-    """
-    Add or update a single configuration entry.
-    For example: add a new configuration value like watch-video-time.
-    """
-    try:
-        accounts_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "accounts")
-        account_dir = os.path.join(accounts_dir, account)
-        config_path = os.path.join(account_dir, "config.yml")
-
-        if not os.path.exists(account_dir):
-            raise HTTPException(status_code=404, detail=f"Account {account} not found")
-
-        # Read file while preserving format
-        try:
-            lines = read_file_lines(config_path)
-            current_config = yaml.safe_load(''.join(lines)) or {}
-        except FileNotFoundError:
-            raise HTTPException(status_code=404, detail=f"Configuration file not found")
-
-        # Convert key to use hyphens
-        key = entry.key.replace('_', '-')
-
-        # Update the lines while preserving format
-        new_lines = update_yaml_value_in_lines(lines, key, entry.value)
-
-        # Validate the complete configuration
-        try:
-            new_config = yaml.safe_load(''.join(new_lines))
-            config_dict = {k.replace('-', '_'): v for k, v in new_config.items()}
-            config_dict.pop('username', None)
-            AccountConfig(username=account, **config_dict)
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Invalid configuration: {str(e)}")
-
-        # Write back the updated lines
-        write_file_lines(config_path, new_lines)
-
-        api_logger.info(f"Added configuration entry {key} for account {account}")
-        return {"status": "success", "message": f"Added configuration entry {key}"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        api_logger.error(f"Error adding configuration entry for account {account}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to add configuration entry: {str(e)}")
-
-@app.post("/account_config/{account}/array/add")
-async def add_array_item(account: str, entry: ArrayConfigEntry):
-    """
-    Add an item to an array configuration entry.
-    For example: add a new username to blogger-followers.
-    """
-    try:
-        accounts_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "accounts")
-        account_dir = os.path.join(accounts_dir, account)
-        config_path = os.path.join(account_dir, "config.yml")
-
-        if not os.path.exists(account_dir):
-            raise HTTPException(status_code=404, detail=f"Account {account} not found")
-
-        # Read file while preserving format
-        try:
-            lines = read_file_lines(config_path)
-            current_config = yaml.safe_load(''.join(lines)) or {}
-        except FileNotFoundError:
-            raise HTTPException(status_code=404, detail=f"Configuration file not found")
-
-        # Convert key to use hyphens
-        key = entry.key.replace('_', '-')
-
-        # Get current array value
-        current_value = current_config.get(key, [])
-        if isinstance(current_value, str):
-            try:
-                import ast
-                current_value = ast.literal_eval(current_value)
-            except:
-                current_value = []
-        if not isinstance(current_value, list):
-            current_value = []
-
-        # Add new item if not present
-        if entry.item not in current_value:
-            current_value.append(entry.item)
-
-        # Update the lines while preserving format
-        new_lines = update_yaml_value_in_lines(lines, key, current_value)
-
-        # Validate the complete configuration
-        try:
-            new_config = yaml.safe_load(''.join(new_lines))
-            config_dict = {k.replace('-', '_'): v for k, v in new_config.items()}
-            config_dict.pop('username', None)
-            AccountConfig(username=account, **config_dict)
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Invalid configuration: {str(e)}")
-
-        # Write back the updated lines
-        write_file_lines(config_path, new_lines)
-
-        api_logger.info(f"Added item to array {key} for account {account}")
-        return {"status": "success", "message": f"Added item to array {key}"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        api_logger.error(f"Error adding array item for account {account}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to add array item: {str(e)}")
-
-@app.delete("/account_config/{account}/add")
-async def remove_config_entry(account: str, key: str):
-    """
-    Remove a single configuration entry.
-    For example: remove a configuration value completely.
-    """
-    try:
-        accounts_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "accounts")
-        account_dir = os.path.join(accounts_dir, account)
-        config_path = os.path.join(account_dir, "config.yml")
-
-        if not os.path.exists(account_dir):
-            raise HTTPException(status_code=404, detail=f"Account {account} not found")
-
-        # Read existing config
-        try:
-            with open(config_path, 'r') as f:
-                current_config = yaml.safe_load(f) or {}
-        except FileNotFoundError:
-            raise HTTPException(status_code=404, detail=f"Configuration file not found")
-
-        # Convert key to use hyphens
-        key = key.replace('_', '-')
-
-        # Remove entry if it exists
-        if key not in current_config:
-            raise HTTPException(status_code=404, detail=f"Configuration entry {key} not found")
-
-        current_config.pop(key)
-
-        # Validate config
-        try:
-            config_dict = {k.replace('-', '_'): v for k, v in current_config.items()}
-            config_dict.pop('username', None)
-            AccountConfig(username=account, **config_dict)
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Invalid configuration: {str(e)}")
-
-        # Save updated config
-        with open(config_path, 'w') as f:
-            yaml.safe_dump(current_config, f, default_flow_style=False)
-
-        api_logger.info(f"Removed configuration entry {key} for account {account}")
-        return {"status": "success", "message": f"Removed configuration entry {key}"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        api_logger.error(f"Error removing configuration entry for account {account}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to remove configuration entry: {str(e)}")
-
-@app.post("/account_config/{account}/array/add")
-async def add_array_item(account: str, entry: ArrayConfigEntry):
-    """
-    Add an item to an array configuration entry.
-    For example: add a new username to blogger-followers.
-    """
-    try:
-        accounts_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "accounts")
-        account_dir = os.path.join(accounts_dir, account)
-        config_path = os.path.join(account_dir, "config.yml")
-
-        if not os.path.exists(account_dir):
-            raise HTTPException(status_code=404, detail=f"Account {account} not found")
-
-        # Read file while preserving format
-        try:
-            lines = read_file_lines(config_path)
-            current_config = yaml.safe_load(''.join(lines)) or {}
-        except FileNotFoundError:
-            raise HTTPException(status_code=404, detail=f"Configuration file not found")
-
-        # Convert key to use hyphens
-        key = entry.key.replace('_', '-')
-
-        # Get current array value
-        current_value = current_config.get(key, [])
-        if isinstance(current_value, str):
-            try:
-                import ast
-                current_value = ast.literal_eval(current_value)
-            except:
-                current_value = []
-        if not isinstance(current_value, list):
-            current_value = []
-
-        # Add new item if not present
-        if entry.item not in current_value:
-            current_value.append(entry.item)
-
-        # Update the lines while preserving format
-        new_lines = update_yaml_value_in_lines(lines, key, current_value)
-
-        # Validate the complete configuration
-        try:
-            new_config = yaml.safe_load(''.join(new_lines))
-            config_dict = {k.replace('-', '_'): v for k, v in new_config.items()}
-            config_dict.pop('username', None)
-            AccountConfig(username=account, **config_dict)
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Invalid configuration: {str(e)}")
-
-        # Write back the updated lines
-        write_file_lines(config_path, new_lines)
-
-        api_logger.info(f"Added item to array {key} for account {account}")
-        return {"status": "success", "message": f"Added item to array {key}"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        api_logger.error(f"Error adding array item for account {account}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to add array item: {str(e)}")
-
-@app.delete("/account_config/{account}/array/{key}/remove")
-async def remove_array_item(account: str, key: str, entry: ArrayConfigEntry):
-    """
-    Remove an item from an array configuration entry.
-    For example: remove a username from blogger-followers.
-    """
-    try:
-        accounts_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "accounts")
-        account_dir = os.path.join(accounts_dir, account)
-        config_path = os.path.join(account_dir, "config.yml")
-
-        if not os.path.exists(account_dir):
-            raise HTTPException(status_code=404, detail=f"Account {account} not found")
-
-        # Read file while preserving format
-        try:
-            lines = read_file_lines(config_path)
-            current_config = yaml.safe_load(''.join(lines)) or {}
-        except FileNotFoundError:
-            raise HTTPException(status_code=404, detail=f"Configuration file not found")
-
-        # Convert key to use hyphens
-        key = key.replace('_', '-')
-
-        # Get current array value
-        current_value = current_config.get(key, [])
-        if isinstance(current_value, str):
-            try:
-                import ast
-                current_value = ast.literal_eval(current_value)
-            except:
-                current_value = []
-        if not isinstance(current_value, list):
-            current_value = []
-
-        # Remove item if it exists
-        if entry.item not in current_value:
-            raise HTTPException(status_code=404, detail=f"Item not found in array {key}")
-            
-        current_value.remove(entry.item)
-
-        # Update the lines while preserving format
-        new_lines = update_yaml_value_in_lines(lines, key, current_value)
-
-        # Validate the complete configuration
-        try:
-            new_config = yaml.safe_load(''.join(new_lines))
-            config_dict = {k.replace('-', '_'): v for k, v in new_config.items()}
-            config_dict.pop('username', None)
-            AccountConfig(username=account, **config_dict)
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Invalid configuration: {str(e)}")
-
-        # Write back the updated lines
-        write_file_lines(config_path, new_lines)
-
-        api_logger.info(f"Removed item from array {key} for account {account}")
-        return {"status": "success", "message": f"Removed item from array {key}"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        api_logger.error(f"Error removing array item for account {account}: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to remove array item: {str(e)}")
 
 def read_file_lines(file_path: str) -> list[str]:
     """Read file and return lines while preserving format"""
@@ -1153,48 +327,3 @@ def update_yaml_value_in_lines(lines: list[str], key: str, value: Any) -> list[s
         new_lines.append(f"{key}: {value}\n")
     
     return new_lines
-
-@app.get("/logs/{account}")
-async def get_logs(account: str, lines: int = 100):
-    """Retrieve the most recent logs for a specific account"""
-    try:
-        log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'logs')
-        api_log_path = os.path.join(log_dir, 'api.log')
-        session_log_path = os.path.join(log_dir, 'sessions.log')
-        
-        logs = {
-            'api_logs': [],
-            'session_logs': []
-        }
-        
-        # Read API logs
-        if os.path.exists(api_log_path):
-            with open(api_log_path, 'r') as f:
-                api_logs = f.readlines()
-                logs['api_logs'] = [
-                    line.strip() for line in api_logs[-lines:]
-                    if account in line
-                ]
-        
-        # Read session logs
-        if os.path.exists(session_log_path):
-            with open(session_log_path, 'r') as f:
-                session_logs = f.readlines()
-                logs['session_logs'] = [
-                    line.strip() for line in session_logs[-lines:]
-                    if account in line
-                ]
-        
-        return logs
-        
-    except Exception as e:
-        api_logger.error(f"Error retrieving logs for account {account}: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to retrieve logs: {str(e)}"
-        )
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint for container monitoring"""
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
