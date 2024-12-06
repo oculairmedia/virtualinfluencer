@@ -3,7 +3,7 @@ FROM oculair/virtualinfluencer:latest
 WORKDIR /app
 
 # Install required packages
-RUN pip install uvicorn psutil gramaddict PyJWT
+RUN pip install uvicorn psutil gramaddict PyJWT ruamel.yaml
 
 # Create .android directory for ADB and set proper permissions
 RUN mkdir -p /root/.android && \

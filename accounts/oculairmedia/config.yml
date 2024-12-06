@@ -1,7 +1,7 @@
 ##############################################################################
 # SCRATCHPAD - IMPORTANT NOTES FOR LLMs
 ##############################################################################
-# Last updated: 2024-01-21 13:43
+# Last updated: 2024-12-06 17:05
 # 
 # FORMATTING RULES:
 # 1. All lists/arrays must use proper YAML syntax with square brackets and commas
@@ -32,36 +32,49 @@
 ##############################################################################
 # General Configuration
 ##############################################################################
-
-username: "oculairmedia"
-device: 192.168.50.202:42356
-app-id: com.instagram.android
-use-cloned-app: false
-allow-untested-ig-version: true
-screen-sleep: true
-screen-record: false
-speed-multiplier: 0.4
-debug: false
-close-apps: true
-kill-atx-agent: false
-restart-atx-agent: false
-disable-block-detection: false
-disable-filters: false
-dont-type: false
-use-nocodb: true  # Enable NocoDB plugin
-init-db: true
-total-crashes-limit: 5
-count-app-crashes: false
-shuffle-jobs: true
-truncate-sources: 2-3
-
+"username": "oculairmedia"
+"device": "192.168.50.202:42356"
+"app-id": "com.instagram.android"
+"use-cloned-app": false
+"allow-untested-ig-version": true
+"screen-sleep": true
+"screen-record": false
+"speed-multiplier": 0.4
+"debug": false
+"close-apps": true
+"kill-atx-agent": false
+"restart-atx-agent": false
+"disable-block-detection": false
+"disable-filters": false
+"dont-type": false
+"total-crashes-limit": 5
+"count-app-crashes": false
+"shuffle-jobs": true
+"truncate-sources": "2-3"
+"use-nocodb": true
+"init-db": true
 ##############################################################################
 # Actions
 ##############################################################################
 
 ## Interaction (active jobs)
-hashtag-posts-recent: [ "motiongraphics", "c4d", "3dart", "motiondesign", "animation", "cgi", "3danimation", "mograph", "octane", "redshift", "sidefx", "houdini", "proceduralart" ]
-blogger-followers: [ "laundry_studios", "tinjutkin", "peter_tarka", "perry__cooper", "antonin.work", "mauro_cosenza" ]
+hashtag-posts-recent:
+  - motiongraphics
+  - c4d
+  - 3dart
+  - motiondesign
+  - animation
+  - cgi
+  - 3danimation
+  - mograph
+  - octane
+  - redshift
+  - sidefx
+  - houdini
+  - proceduralart
+  - 3ddesign
+  - digitalart
+blogger-followers: ["laundry_studios", "tinjutkin", "peter_tarka", "perry__cooper", "antonin.work", "mauro_cosenza"]
 feed: 2-5
 
 ## Special modifier for jobs and sources
@@ -137,7 +150,7 @@ end-if-pm-limit-reached: true
 # Scheduling
 ##############################################################################
 
-working-hours: [ "00.00-23.59" ]
+working-hours: ["00.00-23.59"]
 time-delta: 25-45
 repeat: 280-320
 total-sessions: -1

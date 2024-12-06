@@ -27,6 +27,13 @@ class AccountConfig(BaseModel):
     proxy: Optional[str] = None
     extra: Optional[Dict[str, Any]] = None
 
+class ConfigUpdate(BaseModel):
+    hashtag_posts_recent: Optional[list[str]] = None
+    blogger_followers: Optional[list[str]] = None
+    working_hours: Optional[list[str]] = None
+    class Config:
+        allow_population_by_field_name = True
+
 class AccountInfo(BaseModel):
     name: str
     config: Optional[AccountConfig] = None

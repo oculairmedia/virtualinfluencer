@@ -2,6 +2,10 @@ import os
 import yaml
 from typing import List, Optional
 from api.models import AccountInfo, AccountConfig
+from datetime import datetime
+import re
+from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedMap
 
 class AccountService:
     def __init__(self, accounts_dir: str):
@@ -66,3 +70,72 @@ class AccountService:
         except Exception as e:
             print(f"Error updating config for {account}: {str(e)}")
             return False
+
+    async def patch_account_config(self, account: str, updates: dict) -> dict:
+        """Partially update configuration for a specific account"""
+        config_path = os.path.join(self.accounts_dir, account, "config.yml")
+        if not os.path.exists(config_path):
+            raise FileNotFoundError(f"Config file not found for account {account}")
+
+        try:
+            # Initialize ruamel.yaml
+            yaml = YAML()
+            yaml.preserve_quotes = True
+            yaml.width = 4096  # Prevent line wrapping
+            yaml.indent(mapping=2, sequence=4, offset=2)
+
+            # Read the current file content
+            with open(config_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+
+            # Update timestamp in header
+            for i, line in enumerate(lines):
+                if '# Last updated:' in line:
+                    lines[i] = f'# Last updated: {datetime.now().strftime("%Y-%m-%d %H:%M")}\n'
+                    break
+
+            # Find the index where the actual YAML content starts
+            yaml_start_index = None
+            for idx, line in enumerate(lines):
+                if line.strip() == '##############################################################################':
+                    if idx + 1 < len(lines) and lines[idx + 1].strip().startswith('# Actions'):
+                        yaml_start_index = idx + 2  # YAML content starts after this line
+                        break
+
+            if yaml_start_index is None:
+                raise Exception("Could not find the start of YAML content in config file.")
+
+            # Extract the YAML content
+            yaml_content = ''.join(lines[yaml_start_index:])
+
+            # Parse the YAML content
+            config_data = yaml.load(yaml_content) or CommentedMap()
+
+            # Ensure config_data is a CommentedMap
+            if not isinstance(config_data, CommentedMap):
+                raise Exception("Parsed YAML content is not a valid CommentedMap.")
+
+            # Process updates
+            for key, value in updates.items():
+                # Convert key to string if necessary
+                if not isinstance(key, str):
+                    key = str(key)
+
+                if isinstance(value, list):
+                    # Ensure list items are correctly handled
+                    config_data[key] = [str(v) for v in value]
+                else:
+                    config_data[key] = value
+
+            # Write back to file while preserving the scratchpad
+            with open(config_path, 'w', encoding='utf-8') as f:
+                # Write the scratchpad and header back to the file
+                f.writelines(lines[:yaml_start_index])
+                # Dump the updated YAML content
+                yaml.dump(config_data, f)
+
+            return config_data
+
+        except Exception as e:
+            print(f"Error updating config for account {account}: {str(e)}")
+            raise Exception(f"Failed to update config: {str(e)}")
