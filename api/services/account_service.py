@@ -1,11 +1,12 @@
 import os
 import yaml
-from typing import List, Optional
-from api.models import AccountInfo, AccountConfig
+from typing import List, Optional, Dict, Any
+from api.models import AccountInfo, AccountConfig, ConfigUpdate
 from datetime import datetime
 import re
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
+from fastapi import HTTPException
 
 class AccountService:
     def __init__(self, accounts_dir: str):
@@ -48,12 +49,19 @@ class AccountService:
         try:
             with open(config_path, 'r') as f:
                 config_data = yaml.safe_load(f) or {}
-                # Ensure required fields are present
-                config_data.setdefault('username', account)
-                config_data.setdefault('device', 'default')
-                return AccountConfig(**config_data)
+
+            # Convert kebab-case keys to snake_case
+            converted_data = {}
+            for key, value in config_data.items():
+                if isinstance(key, str):
+                    # Convert kebab-case to snake_case
+                    snake_key = key.replace('-', '_')
+                    converted_data[snake_key] = value
+
+            # Create AccountConfig from the converted data
+            return AccountConfig(**converted_data)
         except Exception as e:
-            print(f"Error reading config for {account}: {str(e)}")
+            print(f"Error loading config for account {account}: {str(e)}")
             return None
 
     async def update_account_config(self, account: str, config: AccountConfig) -> bool:
@@ -71,71 +79,49 @@ class AccountService:
             print(f"Error updating config for {account}: {str(e)}")
             return False
 
-    async def patch_account_config(self, account: str, updates: dict) -> dict:
-        """Partially update configuration for a specific account"""
+    async def patch_account_config(self, account: str, config_update: Dict[str, Any]) -> Dict[str, Any]:
+        """Update account configuration."""
         config_path = os.path.join(self.accounts_dir, account, "config.yml")
         if not os.path.exists(config_path):
-            raise FileNotFoundError(f"Config file not found for account {account}")
+            raise HTTPException(status_code=404, detail=f"Account {account} not found")
 
         try:
-            # Initialize ruamel.yaml
+            # Load existing config while preserving comments
             yaml = YAML()
             yaml.preserve_quotes = True
-            yaml.width = 4096  # Prevent line wrapping
-            yaml.indent(mapping=2, sequence=4, offset=2)
+            with open(config_path, 'r') as f:
+                config_data = yaml.load(f)
 
-            # Read the current file content
-            with open(config_path, 'r', encoding='utf-8') as f:
+            # Update timestamp in header comment
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+            with open(config_path, 'r') as f:
                 lines = f.readlines()
-
-            # Update timestamp in header
             for i, line in enumerate(lines):
-                if '# Last updated:' in line:
-                    lines[i] = f'# Last updated: {datetime.now().strftime("%Y-%m-%d %H:%M")}\n'
+                if line.startswith("# Last updated:"):
+                    lines[i] = f"# Last updated: {timestamp}\n"
                     break
 
-            # Find the index where the actual YAML content starts
-            yaml_start_index = None
-            for idx, line in enumerate(lines):
-                if line.strip() == '##############################################################################':
-                    if idx + 1 < len(lines) and lines[idx + 1].strip().startswith('# Actions'):
-                        yaml_start_index = idx + 2  # YAML content starts after this line
-                        break
+            # Convert snake_case to kebab-case for keys
+            kebab_dict = {k.replace('_', '-'): v for k, v in config_update.items()}
 
-            if yaml_start_index is None:
-                raise Exception("Could not find the start of YAML content in config file.")
+            # Update config data
+            config_data.update(kebab_dict)
 
-            # Extract the YAML content
-            yaml_content = ''.join(lines[yaml_start_index:])
-
-            # Parse the YAML content
-            config_data = yaml.load(yaml_content) or CommentedMap()
-
-            # Ensure config_data is a CommentedMap
-            if not isinstance(config_data, CommentedMap):
-                raise Exception("Parsed YAML content is not a valid CommentedMap.")
-
-            # Process updates
-            for key, value in updates.items():
-                # Convert key to string if necessary
-                if not isinstance(key, str):
-                    key = str(key)
-
-                if isinstance(value, list):
-                    # Ensure list items are correctly handled
-                    config_data[key] = [str(v) for v in value]
-                else:
-                    config_data[key] = value
-
-            # Write back to file while preserving the scratchpad
-            with open(config_path, 'w', encoding='utf-8') as f:
-                # Write the scratchpad and header back to the file
-                f.writelines(lines[:yaml_start_index])
-                # Dump the updated YAML content
-                yaml.dump(config_data, f)
+            # Write back to file, preserving structure and comments
+            with open(config_path, 'w') as f:
+                # Write header with timestamp
+                f.writelines(lines[:20])  # Write first 20 lines (header) as is
+                
+                # Write the rest of the config with special list handling
+                for key, value in config_data.items():
+                    if isinstance(value, list):
+                        # Format lists with square brackets and quoted strings
+                        quoted_items = [f'"{item}"' for item in value]
+                        f.write(f'{key}: [{", ".join(quoted_items)}]\n')
+                    else:
+                        yaml.dump({key: value}, f)
 
             return config_data
 
         except Exception as e:
-            print(f"Error updating config for account {account}: {str(e)}")
-            raise Exception(f"Failed to update config: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to update config: {str(e)}")

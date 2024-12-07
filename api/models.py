@@ -20,12 +20,31 @@ class SessionStatus(BaseModel):
 class AccountConfig(BaseModel):
     username: str
     device: str
-    working_hours: Optional[Dict[str, list[str]]] = None
-    actions: Optional[Dict[str, Any]] = None
-    filters: Optional[Dict[str, Any]] = None
-    plugins: Optional[list[str]] = None
-    proxy: Optional[str] = None
-    extra: Optional[Dict[str, Any]] = None
+    app_id: Optional[str] = None
+    hashtag_posts_recent: Optional[list[str]] = None
+    blogger_followers: Optional[list[str]] = None
+    working_hours: Optional[list[str]] = None
+    feed: Optional[str] = None
+    watch_video_time: Optional[str] = None
+    watch_photo_time: Optional[str] = None
+    delete_interacted_users: Optional[bool] = None
+    comment_percentage: Optional[str] = None
+    pm_percentage: Optional[str] = None
+    delete_removed_followers: Optional[bool] = None
+    analytics: Optional[bool] = None
+    telegram_reports: Optional[bool] = None
+    interactions_count: Optional[str] = None
+    likes_count: Optional[str] = None
+    likes_percentage: Optional[str] = None
+    total_likes_limit: Optional[str] = None
+    total_follows_limit: Optional[str] = None
+    total_unfollows_limit: Optional[int] = None
+    time_delta: Optional[str] = None
+    repeat: Optional[str] = None
+    total_sessions: Optional[int] = None
+
+    class Config:
+        allow_population_by_field_name = True
 
 class ConfigUpdate(BaseModel):
     hashtag_posts_recent: Optional[list[str]] = None
