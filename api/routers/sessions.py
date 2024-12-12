@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, Response
+from fastapi.responses import StreamingResponse
 from api.models import SessionRequest, SessionStatus
+from typing import Optional
 
 router = APIRouter(
     prefix="/sessions",
@@ -7,45 +9,60 @@ router = APIRouter(
     responses={404: {"description": "Session not found"}}
 )
 
-@router.post("/start_session")
+@router.post("/start")
 async def start_session(session_request: SessionRequest, request: Request):
     """
-    Start a new Instagram bot session for the specified account.
+    Start a new bot session for the specified account.
     """
     try:
-        result = await request.app.state.session_service.start_session(session_request)
-        request.app.state.session_logger.info(f"Started session for account {session_request.account}")
-        return result
+        return await request.app.state.session_service.start_session(session_request)
     except Exception as e:
-        request.app.state.session_logger.error(f"Error starting session for account {session_request.account}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        request.app.state.api_logger.error(f"Error starting session: {str(e)}")
+        raise
 
-@router.post("/stop_session")
+@router.post("/stop")
 async def stop_session(session_request: SessionRequest, request: Request):
     """
-    Stop an active Instagram bot session for the specified account.
+    Stop an active bot session.
     """
     try:
-        result = await request.app.state.session_service.stop_session(session_request)
-        request.app.state.session_logger.info(f"Stopped session for account {session_request.account}")
-        return result
+        return await request.app.state.session_service.stop_session(session_request)
     except Exception as e:
-        request.app.state.session_logger.error(f"Error stopping session for account {session_request.account}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        request.app.state.api_logger.error(f"Error stopping session: {str(e)}")
+        raise
 
-@router.get("/status/{account}", response_model=SessionStatus)
+@router.get("/{account}/status", response_model=Optional[SessionStatus])
 async def get_session_status(account: str, request: Request):
     """
-    Get the current status of an Instagram bot session for the specified account.
+    Get the current status of a bot session.
     """
     try:
-        status = await request.app.state.session_service.get_session_status(account)
-        if not status:
-            raise HTTPException(status_code=404, detail=f"Session not found for account {account}")
-        request.app.state.session_logger.debug(f"Retrieved status for account {account}: {status.status}")
-        return status
-    except HTTPException:
-        raise
+        return await request.app.state.session_service.get_session_status(account)
     except Exception as e:
-        request.app.state.session_logger.error(f"Error getting session status for account {account}: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        request.app.state.api_logger.error(f"Error getting session status: {str(e)}")
+        raise
+
+@router.get("/{account}/logs")
+async def stream_session_logs(account: str, request: Request):
+    """
+    Stream logs for a specific account in real-time using Server-Sent Events (SSE).
+    
+    The endpoint returns a stream of log entries in the following format:
+    ```
+    data: {
+        "timestamp": "12/12 12:24:32",
+        "message": "Bot is updated.",
+        "level": "INFO"
+    }
+    ```
+    
+    Each log entry is separated by two newlines as per SSE specification.
+    """
+    try:
+        return StreamingResponse(
+            request.app.state.session_service.stream_logs(account),
+            media_type="text/event-stream"
+        )
+    except Exception as e:
+        request.app.state.api_logger.error(f"Error streaming logs: {str(e)}")
+        raise

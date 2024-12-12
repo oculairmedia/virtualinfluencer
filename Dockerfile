@@ -6,13 +6,24 @@ RUN pip install --no-cache-dir \
     uvicorn==0.32.1 \
     pydantic==2.10.2 \
     PyYAML==6.0.1 \
-    psutil==5.9.8
+    psutil==5.9.8 \
+    ruamel.yaml==0.18.5 \
+    aiofiles==23.2.1
 
 # Create API directory and files
 WORKDIR /app
 
 # Copy the API code
 COPY api /app/api
+
+# Ensure __init__.py exists in all necessary directories
+RUN touch /app/__init__.py && \
+    touch /app/api/__init__.py && \
+    touch /app/api/services/__init__.py && \
+    touch /app/api/routers/__init__.py
+
+# Set Python path to include app directory
+ENV PYTHONPATH=/app
 
 # Create start.sh script with proper line endings
 RUN echo '#!/bin/bash\n\
