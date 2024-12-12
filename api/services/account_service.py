@@ -79,6 +79,54 @@ class AccountService:
             print(f"Error updating config for {account}: {str(e)}")
             return False
 
+    def _transform_value(self, value: Any) -> Any:
+        """Transform values to proper format for YAML"""
+        if isinstance(value, list):
+            # Convert all list items to strings and maintain flow style
+            return [str(item) for item in value]
+        elif isinstance(value, bool):
+            return value
+        elif isinstance(value, (int, float)):
+            return value
+        elif isinstance(value, str):
+            # Check if it's a numeric range (e.g., "2-3" or "15-25")
+            if re.match(r'^\d+\-\d+$', value):
+                return value.strip('"\'')  # Remove any quotes
+            return value
+        return value
+
+    def _get_default_header(self, timestamp: str) -> str:
+        """Get the default header template with given timestamp"""
+        return f"""##############################################################################
+# SCRATCHPAD - IMPORTANT NOTES FOR LLMs
+##############################################################################
+# Last updated: {timestamp}
+# 
+# FORMATTING RULES:
+# 1. All lists/arrays must use proper YAML syntax with square brackets and commas
+#    Example: blogger-followers: [ "user1", "user2", "user3" ]
+# 2. Usernames should be in quotes to handle special characters
+# 3. Time ranges use hyphens without spaces: "12-18" not "12 - 18"
+#
+# CURRENT STRATEGY:
+# - Target: Followers of established 3D artists and motion designers
+# - Speed: Moderate interactions (speed-multiplier: 0.4) for stability
+# - Session Timing: 6-12 minute breaks between sessions
+# - Moderate interaction limits to maintain stability
+# - No mandatory word requirements
+#
+# INSTRUCTIONS FOR FUTURE LLMs:
+# 1. When modifying this file, update the "Last updated" timestamp above"""
+
+    def _extract_config_section(self, content: str) -> str:
+        """Extract just the YAML config section (non-comment lines)"""
+        lines = content.split('\n')
+        config_lines = []
+        for line in lines:
+            if line.strip() and not line.strip().startswith('#'):
+                config_lines.append(line)
+        return '\n'.join(config_lines)
+
     async def patch_account_config(self, account: str, config_update: Dict[str, Any]) -> Dict[str, Any]:
         """Update account configuration."""
         config_path = os.path.join(self.accounts_dir, account, "config.yml")
@@ -86,40 +134,41 @@ class AccountService:
             raise HTTPException(status_code=404, detail=f"Account {account} not found")
 
         try:
-            # Load existing config while preserving comments
+            # Read existing file
+            with open(config_path, 'r') as f:
+                content = f.read()
+            
+            # Extract just the config section
+            config_section = self._extract_config_section(content)
+            
+            # Initialize YAML handler
             yaml = YAML()
-            yaml.preserve_quotes = True
-            with open(config_path, 'r') as f:
-                config_data = yaml.load(f)
+            yaml.preserve_quotes = False  # Don't preserve quotes to avoid quoted parameter names
+            yaml.default_flow_style = True  # Use flow style for lists [item1, item2]
+            yaml.indent(mapping=2, sequence=4, offset=2)
+            
+            # Load existing config
+            config_data = yaml.load(config_section) or {}
 
-            # Update timestamp in header comment
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-            with open(config_path, 'r') as f:
-                lines = f.readlines()
-            for i, line in enumerate(lines):
-                if line.startswith("# Last updated:"):
-                    lines[i] = f"# Last updated: {timestamp}\n"
-                    break
-
-            # Convert snake_case to kebab-case for keys
-            kebab_dict = {k.replace('_', '-'): v for k, v in config_update.items()}
+            # Convert snake_case to kebab-case and transform values
+            updates = {}
+            for key, value in config_update.items():
+                kebab_key = key.replace('_', '-')
+                updates[kebab_key] = self._transform_value(value)
 
             # Update config data
-            config_data.update(kebab_dict)
+            config_data.update(updates)
 
-            # Write back to file, preserving structure and comments
+            # Write back to file
             with open(config_path, 'w') as f:
-                # Write header with timestamp
-                f.writelines(lines[:20])  # Write first 20 lines (header) as is
+                # Write header with current timestamp
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+                header = self._get_default_header(timestamp)
+                f.write(header)
+                f.write('\n\n')  # Add separator between header and content
                 
-                # Write the rest of the config with special list handling
-                for key, value in config_data.items():
-                    if isinstance(value, list):
-                        # Format lists with square brackets and quoted strings
-                        quoted_items = [f'"{item}"' for item in value]
-                        f.write(f'{key}: [{", ".join(quoted_items)}]\n')
-                    else:
-                        yaml.dump({key: value}, f)
+                # Write config data
+                yaml.dump(config_data, f)
 
             return config_data
 
