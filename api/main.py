@@ -1,6 +1,7 @@
 import logging
 import os
 import asyncio
+from contextlib import suppress
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Any
 from fastapi import FastAPI, Request
@@ -64,9 +65,9 @@ async def startup_event():
     api_logger.info("API started successfully")
 
 # Include routers
-app.include_router(health.router)
-app.include_router(accounts.router)
-app.include_router(sessions.router)
+app.include_router(health)
+app.include_router(accounts)
+app.include_router(sessions)
 
 # Error handling middleware
 @app.middleware("http")
@@ -108,139 +109,6 @@ async def cleanup_tasks():
     # Wait for all tasks to complete with a timeout
     with suppress(asyncio.TimeoutError, asyncio.CancelledError):
         await asyncio.wait(tasks, timeout=5.0)
-
-class SessionRequest(BaseModel):
-    account: str
-
-class SessionStatus(BaseModel):
-    account: str
-    status: str
-    start_time: Optional[datetime]
-    last_interaction: Optional[datetime]
-    total_interactions: int = 0
-    errors: Optional[str] = None
-    process_info: Optional[dict] = None
-    memory_usage_mb: Optional[float] = None
-    cpu_percent: Optional[float] = None
-    uptime_minutes: Optional[float] = None
-    is_responsive: bool = True
-
-class BotStats(BaseModel):
-    account: str
-    total_interactions_24h: int = 0
-    successful_interactions_24h: int = 0
-    failed_interactions_24h: int = 0
-    success_rate_24h: float = 0.0
-    average_response_time_ms: float = 0.0
-    uptime_hours: float = 0.0
-    total_sessions: int = 0
-    current_session_duration: Optional[float] = None
-    memory_usage_trend: list = []
-    cpu_usage_trend: list = []
-    error_count_24h: int = 0
-
-class InteractionLimits(BaseModel):
-    """Model for interaction limits"""
-    account: str
-    likes_limit: int
-    follow_limit: int
-    unfollow_limit: int
-    comments_limit: int
-    pm_limit: int
-    watch_limit: int
-    success_limit: int
-    total_limit: int
-    scraped_limit: int
-    crashes_limit: int
-    time_delta_session: int
-
-class AccountInfo(BaseModel):
-    """Model for account information"""
-    username: str
-    total_posts: int = 0
-    total_followers: int = 0
-    total_following: int = 0
-    last_session_time: Optional[datetime] = None
-    is_active: bool = False
-    config_exists: bool = True
-
-class AccountConfig(BaseModel):
-    """Model for account configuration"""
-    username: str
-    app_id: str = "com.instagram.android"
-    use_cloned_app: bool = False
-    allow_untested_ig_version: bool = False
-    screen_sleep: bool = True
-    screen_record: bool = False
-    speed_multiplier: float = 1.0
-    debug: bool = True
-    close_apps: bool = False
-    kill_atx_agent: bool = False
-    restart_atx_agent: bool = False
-    disable_block_detection: bool = False
-    disable_filters: bool = False
-    dont_type: bool = False
-    use_nocodb: bool = True
-    init_db: bool = True
-    total_crashes_limit: int = 5
-    count_app_crashes: bool = False
-    shuffle_jobs: bool = True
-    truncate_sources: str = "2-5"
-    # Action configurations
-    blogger_followers: list[str] = []
-    watch_video_time: str = "15-35"
-    watch_photo_time: str = "3-4"
-    delete_interacted_users: bool = True
-    # Optional fields
-    device: Optional[str] = None
-    scrape_to_file: Optional[str] = None
-    can_reinteract_after: Optional[int] = None
-    feed: Optional[str] = None
-    unfollow: Optional[str] = None
-    unfollow_any: Optional[str] = None
-    unfollow_non_followers: Optional[str] = None
-
-    class Config:
-        alias_generator = lambda string: string.replace('_', '-')
-        allow_population_by_field_name = True
-
-class UpdateAccountConfig(BaseModel):
-    """Model for account configuration updates"""
-    config: Dict[str, Any]
-
-class ConfigEntry(BaseModel):
-    """Model for a single configuration entry"""
-    key: str
-    value: Any
-
-class ArrayConfigEntry(BaseModel):
-    """Model for array configuration entry"""
-    key: str
-    item: Any
-
-async def check_session_timeout():
-    """Background task to check for session timeouts"""
-    while True:
-        try:
-            current_time = datetime.now()
-            for account, session in active_sessions.items():
-                if session['status'] != 'running':
-                    continue
-                
-                # Check last interaction time
-                last_interaction = session.get('last_interaction', session.get('start_time'))
-                if last_interaction:
-                    idle_time = current_time - last_interaction
-                    if idle_time > timedelta(minutes=SESSION_TIMEOUT_MINUTES):
-                        app.state.api_logger.warning(f"Session timeout for account {account} after {idle_time}")
-                        # Stop the session
-                        await stop_session(SessionRequest(account=account))
-            
-            # Check every minute
-            await asyncio.sleep(60)
-        except Exception as e:
-            app.state.api_logger.error(f"Error in session timeout checker: {str(e)}")
-            await asyncio.sleep(60)
 
 @app.on_event("shutdown")
 async def shutdown_event():

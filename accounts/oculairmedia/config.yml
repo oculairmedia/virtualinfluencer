@@ -32,27 +32,29 @@
 ##############################################################################
 # General Configuration
 ##############################################################################
-"username": "oculairmedia"
-"device": "192.168.50.202:42356"
-"app-id": "com.instagram.android"
-"use-cloned-app": false
-"allow-untested-ig-version": true
-"screen-sleep": true
-"screen-record": false
-"speed-multiplier": 0.4
-"debug": false
-"close-apps": true
-"kill-atx-agent": false
-"restart-atx-agent": false
-"disable-block-detection": false
-"disable-filters": false
-"dont-type": false
-"total-crashes-limit": 5
-"count-app-crashes": false
-"shuffle-jobs": true
-"truncate-sources": "2-3"
-"use-nocodb": true
-"init-db": true
+
+username: "oculairmedia"
+device: 192.168.50.202:42356
+app-id: com.instagram.android
+use-cloned-app: false
+allow-untested-ig-version: true
+screen-sleep: true
+screen-record: false
+speed-multiplier: 0.4
+debug: false
+close-apps: true
+kill-atx-agent: false
+restart-atx-agent: false
+disable-block-detection: false
+disable-filters: false
+dont-type: false
+total-crashes-limit: 5
+count-app-crashes: false
+shuffle-jobs: true
+truncate-sources: 2-3
+use-nocodb: true
+init-db: true
+
 ##############################################################################
 # Actions
 ##############################################################################

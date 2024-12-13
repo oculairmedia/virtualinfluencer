@@ -4,7 +4,6 @@ from datetime import datetime
 
 class SessionRequest(BaseModel):
     account: str
-    config: Optional[Dict[str, Any]] = None
 
 class SessionStatus(BaseModel):
     account: str

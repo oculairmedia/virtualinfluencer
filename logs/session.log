@@ -1,3 +1,89 @@
 2024-12-06 18:01:27,488 - session - INFO - Started session for account quecreate
 2024-12-06 18:01:27,489 - session - INFO - Started session for account quecreate
 2024-12-06 18:01:27,495 - session - DEBUG - Retrieved status for account quecreate: running
+2024-12-12 17:10:54,890 - session - INFO - Started session for account oculairmedia
+2024-12-12 17:10:54,891 - session - INFO - Started session for account oculairmedia
+2024-12-12 12:18:15,825 - session - INFO - Started session for account quecreate
+2024-12-12 12:18:15,825 - session - INFO - Started session for account quecreate
+2024-12-12 12:18:17,869 - session - DEBUG - Retrieved status for account quecreate: running
+2024-12-12 12:18:49,916 - session - DEBUG - Retrieved status for account quecreate: running
+2024-12-12 12:51:34,630 - session - ERROR - Error streaming logs for oculairmedia: 'charmap' codec can't decode byte 0x9d in position 25557: character maps to <undefined>
+2024-12-12 18:52:13,902 - session - INFO - Started session for account oculairmedia
+2024-12-12 18:52:13,903 - session - INFO - Started session for account oculairmedia
+2024-12-12 18:52:50,981 - session - DEBUG - Retrieved status for account oculairmedia: running
+2024-12-12 18:55:13,081 - session - INFO - Stopped session for account oculairmedia
+2024-12-12 18:55:13,082 - session - INFO - Stopped session for account oculairmedia
+2024-12-12 18:58:32,402 - session - INFO - Started session for account oculairmedia
+2024-12-12 18:58:32,403 - session - INFO - Started session for account oculairmedia
+2024-12-12 19:03:16,995 - session - INFO - Started session for account oculairmedia
+2024-12-12 19:03:16,996 - session - INFO - Started session for account oculairmedia
+2024-12-12 19:04:13,096 - session - INFO - Stopped session for account oculairmedia
+2024-12-12 19:04:13,097 - session - INFO - Stopped session for account oculairmedia
+2024-12-12 19:04:20,296 - session - INFO - Started session for account oculairmedia
+2024-12-12 19:04:20,297 - session - INFO - Started session for account oculairmedia
+2024-12-12 19:06:03,629 - session - INFO - Started session for account oculairmedia
+2024-12-12 19:06:03,630 - session - INFO - Started session for account oculairmedia
+2024-12-12 14:18:41,620 - session - INFO - Starting session for account oculairmedia with config /app\accounts\oculairmedia\config.yml
+2024-12-12 14:18:41,620 - session - ERROR - Configuration not found for account: oculairmedia at path: /app\accounts\oculairmedia\config.yml
+2024-12-12 14:18:41,620 - session - ERROR - Failed to start session for oculairmedia: 404: Configuration not found for account: oculairmedia at path: /app\accounts\oculairmedia\config.yml
+2024-12-12 14:19:28,486 - session - INFO - Starting session for account oculairmedia with config E:\PROJECTS\instagram automation\virtualinfluencer\api\accounts\oculairmedia\config.yml
+2024-12-12 14:19:28,486 - session - ERROR - Configuration not found for account: oculairmedia at path: E:\PROJECTS\instagram automation\virtualinfluencer\api\accounts\oculairmedia\config.yml
+2024-12-12 14:19:28,487 - session - ERROR - Failed to start session for oculairmedia: 404: Configuration not found for account: oculairmedia at path: E:\PROJECTS\instagram automation\virtualinfluencer\api\accounts\oculairmedia\config.yml
+2024-12-12 14:20:13,541 - session - INFO - Starting session for account oculairmedia with config E:\PROJECTS\instagram automation\virtualinfluencer\accounts\oculairmedia\config.yml
+2024-12-12 14:20:13,542 - session - INFO - Running command: python E:\PROJECTS\instagram automation\virtualinfluencer\run.py --config E:\PROJECTS\instagram automation\virtualinfluencer\accounts\oculairmedia\config.yml --use-nocodb --debug
+2024-12-12 14:20:13,542 - session - INFO - Working directory: E:\PROJECTS\instagram automation\virtualinfluencer
+2024-12-12 14:20:13,548 - session - INFO - Started session for account oculairmedia with PID 17416
+2024-12-12 14:21:41,443 - session - INFO - Starting session for account oculairmedia with config E:\PROJECTS\instagram automation\virtualinfluencer\accounts\oculairmedia\config.yml
+2024-12-12 14:21:41,443 - session - INFO - Running command: E:\PROJECTS\instagram automation\virtualinfluencer\venv\Scripts\python.exe E:\PROJECTS\instagram automation\virtualinfluencer\run.py --config E:\PROJECTS\instagram automation\virtualinfluencer\accounts\oculairmedia\config.yml --use-nocodb --debug
+2024-12-12 14:21:41,443 - session - INFO - Working directory: E:\PROJECTS\instagram automation\virtualinfluencer
+2024-12-12 14:21:41,913 - session - ERROR - Process error output: Error running GramAddict: No module named 'distutils'
+
+2024-12-12 14:21:41,913 - session - ERROR - Failed to start session for oculairmedia: Process error: Error running GramAddict: No module named 'distutils'
+
+2024-12-13 16:51:29,263 - session - INFO - Starting session for account oculairmedia with config /app/accounts/oculairmedia/config.yml
+2024-12-13 16:51:29,268 - session - INFO - Running command: python3 /app/run.py --config /app/accounts/oculairmedia/config.yml --use-nocodb --debug
+2024-12-13 16:51:29,268 - session - INFO - Working directory: /app
+2024-12-13 16:51:29,701 - session - ERROR - Process error output: /app/accounts/oculairmedia/config.yml has been saved last time at 2024-12-13 16:36:32
+
+2024-12-13 16:51:29,702 - session - ERROR - Failed to start session for oculairmedia: Process error: /app/accounts/oculairmedia/config.yml has been saved last time at 2024-12-13 16:36:32
+
+2024-12-13 17:50:14,572 - session - INFO - Starting session for account oculairmedia with config /app/accounts/oculairmedia/config.yml
+2024-12-13 17:50:14,574 - session - INFO - Running command: python3 /app/run.py --config /app/accounts/oculairmedia/config.yml --use-nocodb --debug
+2024-12-13 17:50:14,574 - session - INFO - Working directory: /app
+2024-12-13 17:50:14,879 - session - ERROR - Process error output: /app/accounts/oculairmedia/config.yml has been saved last time at 2024-12-13 16:36:32
+
+2024-12-13 17:50:14,880 - session - ERROR - Failed to start session for oculairmedia: Process error: /app/accounts/oculairmedia/config.yml has been saved last time at 2024-12-13 16:36:32
+
+2024-12-13 17:52:52,187 - session - INFO - Starting session for account oculairmedia with config /app/accounts/oculairmedia/config.yml
+2024-12-13 17:52:52,190 - session - INFO - Running command: python3 /app/run.py --config /app/accounts/oculairmedia/config.yml --use-nocodb --debug
+2024-12-13 17:52:52,191 - session - INFO - Working directory: /app
+2024-12-13 17:52:52,509 - session - ERROR - Process error output: /app/accounts/oculairmedia/config.yml has been saved last time at 2024-12-13 16:36:32
+
+2024-12-13 17:52:52,510 - session - ERROR - Failed to start session for oculairmedia: Process error: /app/accounts/oculairmedia/config.yml has been saved last time at 2024-12-13 16:36:32
+
+2024-12-13 17:54:11,896 - session - INFO - Starting session for account oculairmedia with config /app/accounts/oculairmedia/config.yml
+2024-12-13 17:54:11,898 - session - INFO - Running command: python3 /app/run.py --config /app/accounts/oculairmedia/config.yml --use-nocodb --debug
+2024-12-13 17:54:11,898 - session - INFO - Working directory: /app
+2024-12-13 17:54:12,235 - session - ERROR - Process error output: /app/accounts/oculairmedia/config.yml has been saved last time at 2024-12-13 16:36:32
+
+2024-12-13 17:54:12,236 - session - ERROR - Failed to start session for oculairmedia: Process error: /app/accounts/oculairmedia/config.yml has been saved last time at 2024-12-13 16:36:32
+
+2024-12-13 17:55:33,990 - session - INFO - Starting session for account oculairmedia with config /app/accounts/oculairmedia/config.yml
+2024-12-13 17:55:33,992 - session - INFO - Running command: python3 /app/run.py --config /app/accounts/oculairmedia/config.yml --use-nocodb --debug
+2024-12-13 17:55:33,993 - session - INFO - Working directory: /app
+2024-12-13 17:55:34,303 - session - ERROR - Process error output: /app/accounts/oculairmedia/config.yml has been saved last time at 2024-12-13 16:36:32
+
+2024-12-13 17:55:34,303 - session - ERROR - Failed to start session for oculairmedia: Process error: /app/accounts/oculairmedia/config.yml has been saved last time at 2024-12-13 16:36:32
+
+2024-12-13 17:59:51,942 - session - INFO - Starting session for account oculairmedia with config /app/accounts/oculairmedia/config.yml
+2024-12-13 17:59:51,945 - session - INFO - Running command: python3 /app/run.py --config /app/accounts/oculairmedia/config.yml --use-nocodb --debug
+2024-12-13 17:59:51,945 - session - INFO - Working directory: /app
+2024-12-13 18:00:13,202 - session - INFO - [oculairmedia] already connected to 192.168.50.202:42356
+2024-12-13 18:00:13,202 - session - ERROR - [oculairmedia] [12/13 18:00:00]     INFO | Close all the other apps, to avoid interferences...
+2024-12-13 18:01:21,222 - session - INFO - [oculairmedia] already connected to 192.168.50.202:42356
+2024-12-13 18:01:21,223 - session - ERROR - [oculairmedia] [12/13 18:00:04]     INFO | FastInputIME is the default keyboard.
+2024-12-13 18:02:08,299 - session - INFO - [oculairmedia] already connected to 192.168.50.202:42356
+2024-12-13 18:02:08,300 - session - ERROR - [oculairmedia] [12/13 18:00:13]     INFO | Instagram version: 300.0.0.29.110
+2024-12-13 18:02:08,303 - session - WARNING - Session already exists for account oculairmedia
+2024-12-13 18:02:51,405 - session - INFO - [oculairmedia] already connected to 192.168.50.202:42356
+2024-12-13 18:02:51,405 - session - ERROR - [oculairmedia] [W 241213 18:00:13 __init__:218] [pid:59] atx-agent has something wrong, auto recovering
