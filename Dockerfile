@@ -1,4 +1,4 @@
-FROM oculair/virtualinfluencer:working_backup
+FROM oculair/virtualinfluencer:api-improvements
 
 # Install FastAPI and dependencies
 RUN pip install --no-cache-dir \
@@ -13,8 +13,15 @@ RUN pip install --no-cache-dir \
 # Create API directory and files
 WORKDIR /app
 
-# Copy the API code
+# Copy all necessary files
 COPY api /app/api
+COPY GramAddict /app/GramAddict
+COPY run.py /app/run.py
+COPY accounts /app/accounts
+COPY requirements.txt /app/requirements.txt
+
+# Install requirements
+RUN pip install -r /app/requirements.txt
 
 # Ensure __init__.py exists in all necessary directories
 RUN touch /app/__init__.py && \

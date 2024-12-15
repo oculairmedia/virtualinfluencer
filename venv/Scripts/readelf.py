@@ -1,4 +1,4 @@
-#!e:\PROJECTS\instagram automation\virtualinfluencer\venv\Scripts\python.exe
+#!E:\PROJECTS\instagram automation\virtualinfluencer\venv\Scripts\python.exe
 #-------------------------------------------------------------------------------
 # scripts/readelf.py
 #

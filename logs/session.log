@@ -87,3 +87,7 @@
 2024-12-13 18:02:08,303 - session - WARNING - Session already exists for account oculairmedia
 2024-12-13 18:02:51,405 - session - INFO - [oculairmedia] already connected to 192.168.50.202:42356
 2024-12-13 18:02:51,405 - session - ERROR - [oculairmedia] [W 241213 18:00:13 __init__:218] [pid:59] atx-agent has something wrong, auto recovering
+2024-12-13 18:03:34,905 - session - INFO - [oculairmedia] already connected to 192.168.50.202:42356
+2024-12-13 18:03:34,905 - session - ERROR - [oculairmedia] [D 241213 18:00:13 __init__:322] [pid:59] [192.168.50.202:42356] device 192.168.50.202:42356 is online
+2024-12-13 18:03:40,149 - session - INFO - [oculairmedia] already connected to 192.168.50.202:42356
+2024-12-13 18:03:40,150 - session - ERROR - [oculairmedia] [I 241213 18:00:13 init:156] uiautomator2 version: 2.16.14

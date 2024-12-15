@@ -48,6 +48,8 @@ FIELD_BIO_LANGUAGE = "biography_language"
 FIELD_BIO_BANNED_LANGUAGE = "biography_banned_language"
 FIELD_MIN_POSTS = "min_posts"
 FIELD_MUTUAL_FRIENDS = "mutual_friends"
+FIELD_MIN_LIKERS = "min_likers"
+FIELD_MAX_LIKERS = "max_likers"
 
 IGNORE_CHARSETS = ["MATHEMATICAL"]
 
