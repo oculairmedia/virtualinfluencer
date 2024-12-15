@@ -2,8 +2,15 @@ FROM oculair/virtualinfluencer:latest
 
 WORKDIR /app
 
-# Install required packages
-RUN pip install uvicorn psutil gramaddict PyJWT ruamel.yaml aiofiles
+# Install required packages with specific versions
+RUN pip install \
+    uvicorn[standard]==0.32.1 \
+    psutil==5.9.8 \
+    gramaddict \
+    PyJWT \
+    ruamel.yaml==0.18.5 \
+    aiofiles==23.2.1 \
+    prometheus_client==0.19.0
 
 # Create .android directory for ADB and set proper permissions
 RUN mkdir -p /root/.android && \
@@ -16,15 +23,125 @@ ENV ADB_VENDOR_KEYS=/root/.android/adbkey
 # Copy the application code
 COPY . /app/
 
-# Install the package in development mode
+# Install the package in development mode to make modules discoverable
 RUN pip install -e /app/
+
+# Create __init__.py files and necessary directories
+RUN touch /app/__init__.py && \
+    touch /app/api/__init__.py && \
+    touch /app/api/services/__init__.py && \
+    touch /app/api/routers/__init__.py && \
+    mkdir -p /app/logs && \
+    chmod -R 777 /app/logs
 
 # Configure ADB
 RUN echo "adb.tcpip=5037" > /root/.android/adb_usb.ini
 
+# Create and configure start script
+COPY <<-"EOF" /app/start.sh
+#!/bin/bash
+
+# Trap signals for graceful shutdown
+trap 'kill -TERM $ADB_PID $UVICORN_PID; wait $ADB_PID $UVICORN_PID' TERM INT
+
+# Function to check ADB connection
+check_adb_connection() {
+    adb devices | grep -q "$ADB_DEVICE_IP:$ADB_DEVICE_PORT.*device"
+    return $?
+}
+
+# Function to restart ADB connection
+restart_adb_connection() {
+    echo "Restarting ADB connection..."
+    adb kill-server
+    adb -a -P 5037 start-server
+    sleep 2
+    adb disconnect "$ADB_DEVICE_IP:$ADB_DEVICE_PORT" > /dev/null 2>&1
+    adb tcpip 5555
+    sleep 2
+    adb connect "$ADB_DEVICE_IP:$ADB_DEVICE_PORT"
+    sleep 2
+}
+
+# Start ADB server
+adb kill-server
+adb -a -P 5037 start-server &
+ADB_PID=$!
+
+# Initial connection attempt
+max_retries=5
+retry_count=0
+connected=false
+
+while [ $retry_count -lt $max_retries ] && [ "$connected" = false ]; do
+    if [ ! -z "$ADB_DEVICE_IP" ] && [ ! -z "$ADB_DEVICE_PORT" ]; then
+        echo "Attempt $((retry_count + 1))/$max_retries: Connecting to device at $ADB_DEVICE_IP:$ADB_DEVICE_PORT"
+        
+        adb disconnect "$ADB_DEVICE_IP:$ADB_DEVICE_PORT" > /dev/null 2>&1
+        adb tcpip 5555
+        sleep 2
+        
+        if adb connect "$ADB_DEVICE_IP:$ADB_DEVICE_PORT" | grep -q "connected"; then
+            sleep 2
+            if check_adb_connection; then
+                connected=true
+                echo "Successfully connected to device"
+            else
+                echo "Device connected but not responding"
+                retry_count=$((retry_count + 1))
+                [ $retry_count -lt $max_retries ] && sleep 5
+            fi
+        else
+            echo "Connection attempt failed"
+            retry_count=$((retry_count + 1))
+            [ $retry_count -lt $max_retries ] && sleep 5
+        fi
+    else
+        echo "ADB_DEVICE_IP or ADB_DEVICE_PORT not set"
+        exit 1
+    fi
+done
+
+if [ "$connected" = false ]; then
+    echo "Failed to connect to device after $max_retries attempts"
+    exit 1
+fi
+
+# Create necessary directories
+mkdir -p /app/logs
+
+# Start ADB connection monitor in background
+while true; do
+    if ! check_adb_connection; then
+        echo "ADB connection lost. Attempting to reconnect..."
+        restart_adb_connection
+    fi
+    sleep 30
+done &
+
+# Change to app directory
+cd /app
+
+# Start the FastAPI application with worker configuration
+PYTHONPATH=/app python3 -m uvicorn api.main:app \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --workers 4 \
+    --limit-max-requests 10000 \
+    --timeout-keep-alive 120 \
+    --log-level info &
+UVICORN_PID=$!
+
+# Wait for processes
+wait $UVICORN_PID
+EOF
+
 # Make start script executable and ensure Unix line endings
 RUN sed -i 's/\r$//' /app/start.sh && \
     chmod +x /app/start.sh
+
+# Set Python path in environment
+ENV PYTHONPATH=/app
 
 # Run the start script which handles ADB and FastAPI
 CMD ["/bin/bash", "/app/start.sh"]

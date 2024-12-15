@@ -229,7 +229,7 @@ class SessionService:
 
     async def stream_logs(self, account: str) -> AsyncGenerator[str, None]:
         """Stream logs for a specific account in real-time"""
-        log_file = os.path.join("logs", f"{account}.log")
+        log_file = os.path.join("/app/logs", f"{account}.log")
         if not os.path.exists(log_file):
             raise HTTPException(status_code=404, detail=f"No log file found for account {account}")
 
